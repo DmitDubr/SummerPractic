@@ -230,16 +230,16 @@ PriceBreakdown:
   properties:
     trainingPrice:
       type: number
-      format: decimal
+      format: double
     shoesRentalPrice:
       type: number
-      format: decimal
+      format: double
     harnessRentalPrice:
       type: number
-      format: decimal
+      format: double
     totalPrice:
       type: number
-      format: decimal
+      format: double
 
 SlotSummary:
   type: object
@@ -276,7 +276,7 @@ SlotSummary:
       minimum: 1
     price:
       type: number
-      format: decimal
+      format: double
       nullable: true
       description: Базовая цена тренировки
     status:
@@ -306,7 +306,7 @@ SlotDetail:
           $ref: '#/TrainingFormatInfo'
         basePrice:
           type: number
-          format: decimal
+          format: double
         rentalAvailable:
           type: boolean
           description: Алиас `rentalAvailability.isBookable` для UI
@@ -470,7 +470,7 @@ Booking:
       $ref: '#/EquipmentChoice'
     totalPrice:
       type: number
-      format: decimal
+      format: double
       description: Расчётная сумма к оплате на месте (LOGIC-003)
     priceBreakdown:
       $ref: '#/PriceBreakdown'
@@ -498,7 +498,7 @@ Booking:
       allOf:
         - $ref: '#/InstructorRating'
       nullable: true
-      description: `null` — можно оценить; объект — read-only (SCR-011)
+      description: "null — можно оценить; объект — read-only (SCR-011)"
 
 BookingSummary:
   type: object
@@ -514,7 +514,7 @@ BookingSummary:
       $ref: '#/BookingStatus'
     totalPrice:
       type: number
-      format: decimal
+      format: double
     waitlistPosition:
       type: integer
       nullable: true

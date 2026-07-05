@@ -32,7 +32,7 @@ VALUES
         '44444444-4444-4444-4444-444444444401',
         date_trunc('day', now() AT TIME ZONE 'UTC') + INTERVAL '1 day' + TIME '18:00',
         date_trunc('day', now() AT TIME ZONE 'UTC') + INTERVAL '1 day' + TIME '19:30',
-        8, 5, 3, 'OPEN', 1200.00
+        8, 2, 6, 'OPEN', 1200.00
     ),
     (
         '55555555-5555-5555-5555-555555555502',
