@@ -1,0 +1,29 @@
+Бекэнд
+Папка
+cd backend
+Миграция
+docker compose --profile db up -d db
+
+docker compose --profile migrations run --rm migrate
+
+docker compose --profile app up --build
+Компиляция
+go build ./cmd/api 
+запуск API
+go run ./cmd/api
+
+Paths
+$env:Path += ";C:\Program Files\Go\bin;C:\Program Files\PostgreSQL\18\bin"
+
+
+Проверки
+curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/readyz
+
+клиент
+Папка
+cd client
+Компиляция
+.\gradlew.bat :webApp:wasmJsBrowserProductionWebpack
+Запуск
+.\gradlew.bat :webApp:wasmJsBrowserDevelopmentRun
