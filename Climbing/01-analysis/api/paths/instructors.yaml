@@ -1,0 +1,27 @@
+/instructors:
+  get:
+    operationId: listInstructors
+    tags:
+      - instructors
+    summary: Справочник инструкторов
+    description: |
+      Список инструкторов для фильтра SCR-003. Read-only (FR-014).
+      Рекомендуется кэшировать на клиенте при открытии bottom sheet.
+    responses:
+      '200':
+        description: Список инструкторов
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/InstructorListResponse'
+            example:
+              items:
+                - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  name: Анна К.
+                  avatarUrl: https://cdn.example/instructors/anna.jpg
+                  rating: 4.8
+                - id: 2a7f3c1d-8e4b-4a9c-b6d5-1f0e9a8b7c6d
+                  name: Игорь П.
+                  rating: 4.5
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

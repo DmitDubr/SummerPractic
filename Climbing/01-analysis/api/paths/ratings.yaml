@@ -1,0 +1,48 @@
+/ratings:
+  post:
+    operationId: createRating
+    tags:
+      - ratings
+    summary: Оценить инструктора
+    description: |
+      Создание оценки после посещённой тренировки (UC-006, FR-012, Q 5.1–5.2).
+
+      **Правила:**
+      - только при `Booking.status = ATTENDED`;
+      - одна оценка на бронь;
+      - звёзды 1–5.
+    security:
+      - ClientSession: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/CreateRatingRequest'
+          example:
+            bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+            instructorId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            stars: 4
+    responses:
+      '201':
+        description: Оценка сохранена
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CreateRatingResponse'
+            example:
+              id: 8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d
+              bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              instructorId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              stars: 4
+              createdAt: '2026-07-03T20:30:00+03:00'
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yaml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yaml#/Conflict'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
