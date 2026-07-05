@@ -1,0 +1,118 @@
+/slots:
+  get:
+    operationId: listSlots
+    tags:
+      - slots
+    summary: Список слотов расписания
+    description: |
+      Возвращает кулинарные классы за период с опциональными фильтрами (UC-001, FR-001–004).
+      Дефолтный период — **7 дней** от текущей даты при отсутствии `dateFrom`/`dateTo`.
+
+      Фильтры: время суток, уровень, тип кухни (FR-003). Фильтр по шефу **не реализован** в MVP.
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/CuisineTypeIds'
+      - $ref: '../components/parameters.yaml#/TimeOfDay'
+      - $ref: '../components/parameters.yaml#/Level'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Offset'
+    responses:
+      '200':
+        description: Список слотов
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotListResponse'
+            example:
+              items:
+                - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  startsAt: '2026-07-03T18:00:00+03:00'
+                  program:
+                    id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                    name: Паста и соусы
+                    level: BEGINNER
+                    cuisineTypeName: Итальянская
+                  chef:
+                    id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    fullName: Мария С.
+                    avgRating: 4.8
+                    ratingCount: 28
+                  freeSpots: 3
+                  capacity: 8
+                  price: 3500
+                  status: OPEN
+                  isBookable: true
+              meta:
+                total: 1
+                limit: 50
+                offset: 0
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/slots/{slotId}:
+  get:
+    operationId: getSlot
+    tags:
+      - slots
+    summary: Детали слота
+    description: |
+      Актуальные данные класса для SCR-004: программа, шеф, свободные места, прокат, цена.
+      Pre-check перед `POST /bookings` (api-sequence §4.3).
+    parameters:
+      - $ref: '../components/parameters.yaml#/SlotId'
+    responses:
+      '200':
+        description: Детали слота
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotDetail'
+            example:
+              id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              startsAt: '2026-07-03T18:00:00+03:00'
+              endsAt: '2026-07-03T21:00:00+03:00'
+              durationMinutes: 180
+              program:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Паста и соусы
+                level: BEGINNER
+                cuisineTypeName: Итальянская
+              programInfo:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Паста и соусы
+                menuSummary: Тальятелле, песто, томатный соус
+                level: BEGINNER
+                price: 3500
+                cuisineType:
+                  id: 2c3d4e5f-6789-0123-4567-890abcdef012
+                  name: Итальянская
+                  isActive: true
+              chef:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                fullName: Мария С.
+                photoUrl: https://cdn.example/chefs/maria.jpg
+                avgRating: 4.8
+                ratingCount: 28
+                defaultCapacityLimit: 8
+              freeSpots: 3
+              capacity: 8
+              price: 3500
+              status: OPEN
+              isBookable: true
+              rentalAvailable: true
+              rentalAvailability:
+                apronsAvailable: 5
+                knifeSetsAvailable: 3
+                rentalFullyExhausted: false
+              studio:
+                id: 4e5f6789-0123-4567-890a-bcdef0123456
+                name: Шеф-стол
+                address: ул. Кулинарная, 5
+                totalWorkstations: 12
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

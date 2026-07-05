@@ -1,0 +1,242 @@
+/bookings:
+  get:
+    operationId: listBookings
+    tags:
+      - bookings
+    summary: Список броней клиента
+    description: |
+      Брони текущего клиента для SCR-008 (UC-003, FR-016).
+      Сегментация «Предстоящие» / «Прошедшие» выполняется на клиенте по `slot.startsAt` и `status`.
+      Поддерживает офлайн-кэш (NFR-009).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingStatusFilter'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Offset'
+    responses:
+      '200':
+        description: Список броней
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/BookingListResponse'
+            example:
+              items:
+                - id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                  status: ACTIVE
+                  totalPrice: 3500
+                  slot:
+                    startsAt: '2026-07-09T18:00:00+03:00'
+                    program:
+                      name: Паста и соусы
+                    chef:
+                      fullName: Мария С.
+              meta:
+                total: 1
+                limit: 50
+                offset: 0
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+  post:
+    operationId: createBooking
+    tags:
+      - bookings
+    summary: Создать бронь
+    description: |
+      Запись на кулинарный класс (UC-002, FR-006–FR-015).
+
+      Client API выполняет upsert профиля клиента и аллергий, pre-check слота и атомарное
+      создание брони в Existing Backend (api-sequence.md).
+
+      **Коды ошибок:** см. матрицу в api-sequence §5.
+      Лист ожидания **не** предусмотрен (FR-011).
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/CreateBookingRequest'
+          example:
+            slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+            client:
+              name: Иван
+              phone: '+79001234567'
+            allergies:
+              allergiesText: Арахис, лактоза
+              menuWarningAcknowledged: true
+            equipment:
+              mode: RENTAL
+              rentalApron: true
+              rentalKnives: false
+    responses:
+      '201':
+        description: Бронь создана
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CreateBookingResponse'
+            example:
+              id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              status: ACTIVE
+              totalPrice: 3500
+              equipment:
+                mode: RENTAL
+                rentalApron: true
+                rentalKnives: false
+              allergies:
+                allergiesText: Арахис, лактоза
+              createdAt: '2026-07-03T10:00:00+03:00'
+              sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '403':
+        $ref: '../components/responses.yaml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yaml#/Conflict'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/bookings/{bookingId}:
+  get:
+    operationId: getBooking
+    tags:
+      - bookings
+    summary: Детали брони
+    description: |
+      Полная информация о брони для SCR-009 (UC-003–UC-006).
+      Поддерживает deep link из push-уведомлений (FR-020, FR-023, FR-027).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingId'
+    responses:
+      '200':
+        description: Детали брони
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/Booking'
+            example:
+              id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              status: ACTIVE
+              totalPrice: 3500
+              equipment:
+                mode: RENTAL
+                rentalApron: true
+                rentalKnives: false
+              allergies:
+                allergiesText: Арахис, лактоза
+              canCancel: true
+              isLateCancellation: false
+              createdAt: '2026-07-03T10:00:00+03:00'
+              slot:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                startsAt: '2026-07-09T18:00:00+03:00'
+                endsAt: '2026-07-09T21:00:00+03:00'
+                program:
+                  name: Паста и соусы
+                  menuSummary: Тальятелле, песто, томатный соус
+                chef:
+                  id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  fullName: Мария С.
+                  avgRating: 4.8
+                  ratingCount: 28
+              studio:
+                name: Шеф-стол
+                address: ул. Кулинарная, 5
+              chefRating: null
+              allergyConflict: false
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+  patch:
+    operationId: updateBookingAllergies
+    tags:
+      - bookings
+    summary: Обновить аллергии в брони
+    description: |
+      Изменение аллергий в существующей **активной** записи (UC-009, FR-013, SCR-009 / SCR-012).
+      Предупреждение о несовместимости с меню — на клиенте через `POST /allergies/check` (FR-014).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingId'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/UpdateBookingAllergiesRequest'
+          example:
+            allergies:
+              allergiesText: Орехи, глютен
+              menuWarningAcknowledged: true
+    responses:
+      '200':
+        description: Аллергии обновлены
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/Booking'
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yaml#/Forbidden'
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/bookings/{bookingId}/cancel:
+  post:
+    operationId: cancelBooking
+    tags:
+      - bookings
+    summary: Отменить бронь клиентом
+    description: |
+      Отмена активной брони (UC-004, FR-017–FR-018).
+
+      При отмене за **≥ 3 ч** до начала место освобождается сразу (FR-017).
+      При отмене **< 3 ч** — предупреждение на клиенте (SCR-010); отмена **разрешена**;
+      штрафов в MVP нет (FR-018).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingId'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+    responses:
+      '200':
+        description: Бронь отменена
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CancelBookingResponse'
+            example:
+              id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              status: CANCELLED_BY_CLIENT
+              cancelledAt: '2026-07-03T17:00:00+03:00'
+              isLateCancellation: false
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '409':
+        $ref: '../components/responses.yaml#/Conflict'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

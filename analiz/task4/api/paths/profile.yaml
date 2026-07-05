@@ -1,0 +1,101 @@
+/profile:
+  get:
+    operationId: getProfile
+    tags:
+      - profile
+    summary: Получить контактный профиль
+    description: |
+      Контактные данные для SCR-005 / SCR-012 (FR-006, FR-025).
+      `404` или пустой профиль — режим «первая запись».
+    security:
+      - ClientSession: []
+    responses:
+      '200':
+        description: Профиль клиента
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/ClientProfile'
+            example:
+              id: 6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+              name: Иван
+              phone: '+79001234567'
+              isComplete: true
+              isRegularClient: true
+              hasPriorityBooking: true
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '404':
+        description: Профиль не найден (первая запись)
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+  patch:
+    operationId: updateProfile
+    tags:
+      - profile
+    summary: Обновить контактный профиль
+    description: |
+      Upsert имени и телефона (FR-006).
+      Вызывается из SCR-012 или неявно при `POST /bookings` (api-sequence §4.2).
+    security:
+      - ClientSession: []
+      - {}
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/UpdateProfileRequest'
+          example:
+            name: Иван
+            phone: '+79001234567'
+    responses:
+      '200':
+        description: Профиль сохранён
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/UpdateProfileResponse'
+            example:
+              id: 6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+              name: Иван
+              phone: '+79001234567'
+              isComplete: true
+              isRegularClient: false
+              hasPriorityBooking: false
+              sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/profile/push-token:
+  post:
+    operationId: registerPushToken
+    tags:
+      - profile
+    summary: Зарегистрировать push-токен
+    description: |
+      Регистрация FCM-токена Android-устройства (FR-024, NFR-010).
+      Вызывается асинхронно после первой успешной брони на SCR-006; не блокирует UI.
+    security:
+      - ClientSession: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/RegisterPushTokenRequest'
+          example:
+            token: fcm-device-token-example
+            platform: android
+    responses:
+      '204':
+        description: Токен зарегистрирован
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

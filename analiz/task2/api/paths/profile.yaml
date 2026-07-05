@@ -1,0 +1,105 @@
+/profile:
+  get:
+    operationId: getProfile
+    tags:
+      - profile
+    summary: Получить контактный профиль
+    description: |
+      Контактные данные и сохранённые аллергии для SCR-005 / SCR-013 (FR-006, FR-012).
+      `404` или пустой профиль — режим «первая запись».
+    security:
+      - ClientSession: []
+    responses:
+      '200':
+        description: Профиль клиента
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/ClientProfile'
+            example:
+              id: 6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+              name: Иван
+              phone: '+79001234567'
+              isComplete: true
+              isRegularClient: true
+              hasPriorityBooking: true
+              allergies: Арахис, лактоза
+              allergiesUpdatedAt: '2026-07-01T12:00:00+03:00'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '404':
+        description: Профиль не найден (первая запись)
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+  patch:
+    operationId: updateProfile
+    tags:
+      - profile
+    summary: Обновить контактный профиль
+    description: |
+      Upsert имени, телефона и опционально аллергий (FR-006, FR-012).
+      Вызывается из SCR-013 или неявно при `POST /bookings` (api-sequence §4.2).
+    security:
+      - ClientSession: []
+      - {}
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/UpdateProfileRequest'
+          example:
+            name: Иван
+            phone: '+79001234567'
+            allergies: Арахис, лактоза
+    responses:
+      '200':
+        description: Профиль сохранён
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/UpdateProfileResponse'
+            example:
+              id: 6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+              name: Иван
+              phone: '+79001234567'
+              isComplete: true
+              isRegularClient: false
+              hasPriorityBooking: false
+              allergies: Арахис, лактоза
+              sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/profile/push-token:
+  post:
+    operationId: registerPushToken
+    tags:
+      - profile
+    summary: Зарегистрировать push-токен
+    description: |
+      Регистрация FCM-токена Android-устройства (FR-027, NFR-010).
+      Вызывается асинхронно после первой успешной брони; не блокирует UI.
+    security:
+      - ClientSession: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/RegisterPushTokenRequest'
+          example:
+            token: fcm-device-token-example
+            platform: android
+    responses:
+      '204':
+        description: Токен зарегистрирован
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

@@ -1,0 +1,700 @@
+# --- Enums ---
+
+SlotStatus:
+  type: string
+  enum:
+    - OPEN
+    - FULL
+    - CANCELLED
+    - RESCHEDULED
+  description: |
+    - `OPEN` — запись доступна
+    - `FULL` — мест нет (лист ожидания не реализуется, FR-011)
+    - `CANCELLED` — занятие отменено мастерской (R-008, FR-016)
+    - `RESCHEDULED` — перенос времени или мастера (FR-020)
+
+BookingStatus:
+  type: string
+  enum:
+    - ACTIVE
+    - CANCELLED_BY_CLIENT
+    - CANCELLED_BY_WORKSHOP
+    - ATTENDED
+  description: |
+    - `ACTIVE` — запись подтверждена
+    - `CANCELLED_BY_CLIENT` — отменена клиентом (UC-004)
+    - `CANCELLED_BY_WORKSHOP` — отменена мастерской с причиной (FR-016)
+    - `ATTENDED` — занятие посещено
+
+EquipmentMode:
+  type: string
+  enum:
+    - OWN
+    - RENTAL
+
+SessionLevel:
+  type: string
+  enum:
+    - BEGINNER
+    - INTERMEDIATE
+    - ADVANCED
+
+ProgramTypeCode:
+  type: string
+  enum:
+    - CLAY
+    - WHEEL
+  description: |
+    - `CLAY` — лепка
+    - `WHEEL` — работа на гончарном круге
+
+TimeOfDay:
+  type: string
+  enum:
+    - morning
+    - afternoon
+    - evening
+
+ErrorCode:
+  type: string
+  enum:
+    - VALIDATION_ERROR
+    - SLOT_REBOOK_FORBIDDEN
+    - NO_SPOTS
+    - ALREADY_BOOKED_TODAY
+    - SLOT_CANCELLED
+    - RENTAL_UNAVAILABLE
+    - ALREADY_CANCELLED
+    - BOOKING_NOT_ATTENDED
+    - RATING_PERIOD_EXPIRED
+    - SERVER_ERROR
+  description: Машиночитаемый код доменной ошибки
+
+Platform:
+  type: string
+  enum:
+    - android
+
+# --- Common ---
+
+ErrorResponse:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      $ref: '#/ErrorCode'
+    message:
+      type: string
+      description: Человекочитаемое сообщение на русском (NFR-008)
+    details:
+      type: array
+      description: Детали ошибок валидации (для `VALIDATION_ERROR`)
+      items:
+        $ref: '#/ValidationErrorDetail'
+
+ValidationErrorDetail:
+  type: object
+  properties:
+    field:
+      type: string
+      example: client.phone
+    message:
+      type: string
+      example: Телефон должен быть в формате +7 и содержать 10 цифр
+
+PaginationMeta:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: Общее число элементов
+    limit:
+      type: integer
+    offset:
+      type: integer
+
+# --- Domain objects ---
+
+WorkshopInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Глина
+    address:
+      type: string
+      example: ул. Гончарная, 12, Воронеж
+    totalWheels:
+      type: integer
+      example: 10
+      description: Всего гончарных кругов на мастерской
+
+ProgramCatalogItem:
+  type: object
+  required:
+    - id
+    - typeName
+    - isActive
+  properties:
+    id:
+      type: string
+      format: uuid
+      description: Идентификатор для фильтра `programIds` в `listSlots`
+    typeName:
+      type: string
+      description: Краткое название типа программы для UI
+      example: Лепка
+    code:
+      $ref: '#/ProgramTypeCode'
+    isActive:
+      type: boolean
+
+ProgramListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/ProgramCatalogItem'
+
+ProgramInfo:
+  type: object
+  required:
+    - id
+    - name
+    - level
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Лепка для начинающих
+    typeName:
+      type: string
+      description: Бейдж типа программы (SCR-004)
+      example: Лепка
+    summary:
+      type: string
+      description: Краткое содержание занятия (SCR-004, FR-004)
+      example: Лепка посуды, роспись глазурью
+    level:
+      $ref: '#/SessionLevel'
+    programType:
+      $ref: '#/ProgramCatalogItem'
+    price:
+      type: number
+      format: decimal
+      description: Цена занятия; прокат не влияет (FR-012)
+
+MasterSummary:
+  type: object
+  required:
+    - id
+    - fullName
+  properties:
+    id:
+      type: string
+      format: uuid
+    fullName:
+      type: string
+      example: Анна К.
+    photoUrl:
+      type: string
+      format: uri
+      nullable: true
+    avgRating:
+      type: number
+      format: float
+      minimum: 0
+      maximum: 5
+      nullable: true
+      description: Средний рейтинг (FR-023); при `ratingCount=0` может быть null
+    ratingCount:
+      type: integer
+      minimum: 0
+      example: 24
+
+MasterDetail:
+  allOf:
+    - $ref: '#/MasterSummary'
+    - type: object
+      properties:
+        defaultCapacityLimit:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Лимит группы для мастера — до 6 на новичковые, до 10 на круге (Q 2.1, Q 2.2)
+          example: 6
+
+RentalAvailability:
+  type: object
+  properties:
+    toolsAvailable:
+      type: integer
+      minimum: 0
+      description: Свободно комплектов инструментов
+    apronsAvailable:
+      type: integer
+      minimum: 0
+      description: Свободно фартуков
+    rentalFullyExhausted:
+      type: boolean
+      description: Прокат полностью исчерпан (FR-008)
+
+EquipmentChoice:
+  type: object
+  required:
+    - mode
+  properties:
+    mode:
+      $ref: '#/EquipmentMode'
+    rentalTools:
+      type: boolean
+      default: false
+      description: Прокат инструментов (при `mode=RENTAL`)
+    rentalApron:
+      type: boolean
+      default: false
+      description: Прокат фартука (при `mode=RENTAL`)
+
+RescheduleInfo:
+  type: object
+  description: Данные переноса занятия (FR-020); устанавливается бэкендом
+  properties:
+    newStartsAt:
+      type: string
+      format: date-time
+      description: Новое время начала
+    newMasterId:
+      type: string
+      format: uuid
+      nullable: true
+    newMasterName:
+      type: string
+      nullable: true
+      example: Мария П.
+    rescheduledAt:
+      type: string
+      format: date-time
+
+SlotSummary:
+  type: object
+  required:
+    - id
+    - startsAt
+    - freeSpots
+    - capacity
+    - status
+    - isBookable
+    - master
+    - program
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    program:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Лепка для начинающих
+        typeName:
+          type: string
+          example: Лепка
+        level:
+          $ref: '#/SessionLevel'
+    master:
+      $ref: '#/MasterSummary'
+    freeSpots:
+      type: integer
+      minimum: 0
+      description: Свободные места; UI показывает «Есть места» / «Мест нет» без счётчика X/Y
+    capacity:
+      type: integer
+      minimum: 1
+    price:
+      type: number
+      format: decimal
+      nullable: true
+      description: Цена программы (FR-012)
+    status:
+      $ref: '#/SlotStatus'
+    isBookable:
+      type: boolean
+      description: |
+        Запись доступна с учётом статуса слота.
+        При исчерпании проката запись возможна с `equipment.mode=OWN` (FR-008).
+
+SlotDetail:
+  allOf:
+    - $ref: '#/SlotSummary'
+    - type: object
+      required:
+        - endsAt
+        - rentalAvailability
+      properties:
+        endsAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          minimum: 120
+          maximum: 150
+          example: 150
+          description: Длительность 2–2,5 ч
+        programInfo:
+          $ref: '#/ProgramInfo'
+        rentalAvailable:
+          type: boolean
+          description: Можно выбрать прокат на этом слоте
+        rentalAvailability:
+          $ref: '#/RentalAvailability'
+        workshop:
+          $ref: '#/WorkshopInfo'
+
+SlotListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/SlotSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+ClientContacts:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+      example: Иван
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+      example: '+79001234567'
+      description: Формат +7 и 10 цифр (Q 1.1)
+
+ClientProfile:
+  type: object
+  required:
+    - name
+    - phone
+    - isComplete
+    - isRegularClient
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+    isComplete:
+      type: boolean
+      description: Профиль заполнен и валиден
+    isRegularClient:
+      type: boolean
+      description: Метка постоянного клиента (FR-025)
+    hasPriorityBooking:
+      type: boolean
+      description: Приоритет записи для постоянных клиентов (FR-025)
+
+UpdateProfileRequest:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+
+UpdateProfileResponse:
+  allOf:
+    - $ref: '#/ClientProfile'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT для последующих запросов (ClientSession)
+
+RegisterPushTokenRequest:
+  type: object
+  required:
+    - token
+    - platform
+  properties:
+    token:
+      type: string
+      description: Push-токен устройства (FCM)
+    platform:
+      $ref: '#/Platform'
+
+SlotRef:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    endsAt:
+      type: string
+      format: date-time
+    program:
+      $ref: '#/ProgramInfo'
+    master:
+      $ref: '#/MasterDetail'
+
+MasterRating:
+  type: object
+  required:
+    - id
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    masterId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+
+Booking:
+  type: object
+  required:
+    - id
+    - slotId
+    - status
+    - equipment
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    slotId:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    equipment:
+      $ref: '#/EquipmentChoice'
+    totalPrice:
+      type: number
+      format: decimal
+      description: Цена программы; оплата на месте (FR-012)
+    cancellationReason:
+      type: string
+      nullable: true
+      description: Причина при `CANCELLED_BY_WORKSHOP` (R-008, FR-016)
+    cancelledAt:
+      type: string
+      format: date-time
+      nullable: true
+    canCancel:
+      type: boolean
+      description: Можно ли отменить (статус ACTIVE и занятие в будущем)
+    isLateCancellation:
+      type: boolean
+      description: |
+        До начала < 3 ч (FR-015). Предупреждение о заготовленной глине на клиенте;
+        отмена на сервере разрешена.
+    rescheduleInfo:
+      allOf:
+        - $ref: '#/RescheduleInfo'
+      nullable: true
+      description: Данные переноса; взаимоисключающий блок с `cancellationReason`
+    createdAt:
+      type: string
+      format: date-time
+    slot:
+      $ref: '#/SlotRef'
+    workshop:
+      $ref: '#/WorkshopInfo'
+    masterRating:
+      allOf:
+        - $ref: '#/MasterRating'
+      nullable: true
+      description: |
+        `null` — можно оценить мастера (FR-021);
+        объект — read-only оценка клиента для этого мастера (FR-022)
+
+BookingSummary:
+  type: object
+  required:
+    - id
+    - status
+    - slot
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    totalPrice:
+      type: number
+      format: decimal
+    slot:
+      type: object
+      required:
+        - startsAt
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+        program:
+          type: object
+          properties:
+            name:
+              type: string
+        master:
+          type: object
+          properties:
+            fullName:
+              type: string
+
+BookingListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/BookingSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+CreateBookingRequest:
+  type: object
+  required:
+    - slotId
+    - client
+    - equipment
+  properties:
+    slotId:
+      type: string
+      format: uuid
+    client:
+      $ref: '#/ClientContacts'
+    equipment:
+      $ref: '#/EquipmentChoice'
+
+CreateBookingResponse:
+  allOf:
+    - $ref: '#/Booking'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT сессии клиента (при первой записи или upsert профиля)
+
+CancelBookingResponse:
+  type: object
+  required:
+    - id
+    - status
+    - cancelledAt
+    - isLateCancellation
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      type: string
+      enum:
+        - CANCELLED_BY_CLIENT
+    cancelledAt:
+      type: string
+      format: date-time
+    isLateCancellation:
+      type: boolean
+      description: Отмена менее чем за 3 ч до начала (FR-015)
+
+CreateRatingRequest:
+  type: object
+  required:
+    - masterId
+    - stars
+  properties:
+    bookingId:
+      type: string
+      format: uuid
+      description: |
+        Бронь для проверки статуса ATTENDED (UC-007).
+        Обязателен при первой оценке через SCR-011.
+    masterId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+
+CreateRatingResponse:
+  type: object
+  required:
+    - id
+    - masterId
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    bookingId:
+      type: string
+      format: uuid
+      nullable: true
+    masterId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true

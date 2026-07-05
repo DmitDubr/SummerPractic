@@ -1,0 +1,121 @@
+/slots:
+  get:
+    operationId: listSlots
+    tags:
+      - slots
+    summary: Список слотов расписания
+    description: |
+      Возвращает занятия за период с опциональными фильтрами (UC-001, FR-001–004).
+      Дефолтный период — **7 дней** от текущей даты при отсутствии `dateFrom`/`dateTo`.
+
+      Фильтры: время суток, уровень, программа (FR-003). Фильтр по мастеру **не реализован** в MVP.
+      Доступность в UI: «Есть места» / «Мест нет» по `freeSpots` (без счётчика X/Y и номера круга).
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/ProgramIds'
+      - $ref: '../components/parameters.yaml#/TimeOfDay'
+      - $ref: '../components/parameters.yaml#/Level'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Offset'
+    responses:
+      '200':
+        description: Список слотов
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotListResponse'
+            example:
+              items:
+                - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  startsAt: '2026-07-09T18:00:00+03:00'
+                  program:
+                    id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                    name: Лепка для начинающих
+                    typeName: Лепка
+                    level: BEGINNER
+                  master:
+                    id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    fullName: Анна К.
+                    avgRating: 4.8
+                    ratingCount: 24
+                  freeSpots: 3
+                  capacity: 6
+                  price: 2800
+                  status: OPEN
+                  isBookable: true
+              meta:
+                total: 1
+                limit: 50
+                offset: 0
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/slots/{slotId}:
+  get:
+    operationId: getSlot
+    tags:
+      - slots
+    summary: Детали слота
+    description: |
+      Актуальные данные занятия для SCR-004 / SCR-005: программа, мастер, свободные места,
+      прокат, цена. Pre-check перед `POST /bookings` (api-sequence §4.3).
+    parameters:
+      - $ref: '../components/parameters.yaml#/SlotId'
+    responses:
+      '200':
+        description: Детали слота
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotDetail'
+            example:
+              id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              startsAt: '2026-07-09T18:00:00+03:00'
+              endsAt: '2026-07-09T20:30:00+03:00'
+              durationMinutes: 150
+              program:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Лепка для начинающих
+                typeName: Лепка
+                level: BEGINNER
+              programInfo:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Лепка для начинающих
+                typeName: Лепка
+                summary: Лепка посуды, роспись глазурью
+                level: BEGINNER
+                price: 2800
+                programType:
+                  id: 2c3d4e5f-6789-0123-4567-890abcdef012
+                  typeName: Лепка
+                  code: CLAY
+                  isActive: true
+              master:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                fullName: Анна К.
+                photoUrl: https://cdn.example/masters/anna.jpg
+                avgRating: 4.8
+                ratingCount: 24
+                defaultCapacityLimit: 6
+              freeSpots: 3
+              capacity: 6
+              price: 2800
+              status: OPEN
+              isBookable: true
+              rentalAvailable: true
+              rentalAvailability:
+                toolsAvailable: 8
+                apronsAvailable: 5
+                rentalFullyExhausted: false
+              workshop:
+                id: 4e5f6789-0123-4567-890a-bcdef0123456
+                name: Глина
+                address: ул. Гончарная, 12
+                totalWheels: 10
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

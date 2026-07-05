@@ -1,0 +1,26 @@
+/cuisine-types:
+  get:
+    operationId: listCuisineTypes
+    tags:
+      - cuisine-types
+    summary: Справочник типов кухни
+    description: |
+      Активные типы кухни для фильтра SCR-003 (FR-003).
+      Read-only — данные из Existing Backend (FR-029).
+    responses:
+      '200':
+        description: Список типов кухни
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CuisineTypeListResponse'
+            example:
+              items:
+                - id: 2c3d4e5f-6789-0123-4567-890abcdef012
+                  name: Итальянская
+                  isActive: true
+                - id: 3d4e5f67-8901-2345-6789-0abcdef01234
+                  name: Азиатская
+                  isActive: true
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

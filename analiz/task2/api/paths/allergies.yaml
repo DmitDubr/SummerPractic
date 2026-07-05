@@ -1,0 +1,45 @@
+/allergies/check:
+  post:
+    operationId: checkAllergyCompatibility
+    tags:
+      - allergies
+    summary: Проверить совместимость аллергий с меню класса
+    description: |
+      Проверка для баннера предупреждения FR-014 на SCR-005 / SCR-012 / SCR-009.
+      Запись **не блокируется** — клиент принимает решение осознанно.
+    security:
+      - ClientSession: []
+      - {}
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/AllergyCheckRequest'
+          example:
+            slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+            allergiesText: Орехи, глютен
+    responses:
+      '200':
+        description: Результат проверки
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/AllergyCheckResponse'
+            examples:
+              conflict:
+                summary: Несовместимость с меню
+                value:
+                  hasConflict: true
+                  message: В меню класса есть орехи. Запись возможна — сообщите шефу на кухне.
+              noConflict:
+                summary: Конфликта нет
+                value:
+                  hasConflict: false
+                  message: null
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

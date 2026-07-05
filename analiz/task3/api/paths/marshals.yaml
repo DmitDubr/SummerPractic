@@ -1,0 +1,26 @@
+/marshals:
+  get:
+    operationId: listMarshals
+    tags:
+      - marshals
+    summary: Справочник маршалов
+    description: |
+      Список маршалов для фильтра SCR-003 (FR-003). Read-only.
+      Рекомендуется кэшировать на клиенте при открытии bottom sheet.
+      Рейтинги (`avgRating`) — v2 (FR-028).
+    responses:
+      '200':
+        description: Список маршалов
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/MarshalListResponse'
+            example:
+              items:
+                - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  fullName: Дмитрий К.
+                  photoUrl: https://cdn.example/marshals/dmitry.jpg
+                - id: 2a7f3c1d-8e4b-4a9c-b6d5-1f0e9a8b7c6d
+                  fullName: Алексей М.
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

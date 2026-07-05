@@ -1,0 +1,670 @@
+# --- Enums ---
+
+SlotStatus:
+  type: string
+  enum:
+    - OPEN
+    - FULL
+    - CANCELLED
+    - RESCHEDULED
+  description: |
+    - `OPEN` — запись доступна
+    - `FULL` — мест нет (лист ожидания не реализуется, FR-012)
+    - `CANCELLED` — заезд отменён центром (R-008, FR-017)
+    - `RESCHEDULED` — перенос времени или маршала (FR-025, v2)
+
+BookingStatus:
+  type: string
+  enum:
+    - ACTIVE
+    - CANCELLED_BY_CLIENT
+    - CANCELLED_BY_CENTER
+    - ATTENDED
+  description: |
+    - `ACTIVE` — запись подтверждена
+    - `CANCELLED_BY_CLIENT` — отменена клиентом (UC-004)
+    - `CANCELLED_BY_CENTER` — отменена центром с причиной (FR-017, R-008)
+    - `ATTENDED` — заезд посещён
+
+EquipmentMode:
+  type: string
+  enum:
+    - OWN
+    - RENTAL
+
+TrackLayout:
+  type: string
+  enum:
+    - SHORT
+    - LONG
+
+TimeOfDay:
+  type: string
+  enum:
+    - morning
+    - afternoon
+    - evening
+
+ErrorCode:
+  type: string
+  enum:
+    - VALIDATION_ERROR
+    - SLOT_REBOOK_FORBIDDEN
+    - NO_SPOTS
+    - SLOT_CANCELLED
+    - RENTAL_UNAVAILABLE
+    - ALREADY_CANCELLED
+    - BOOKING_NOT_ATTENDED
+    - RATING_PERIOD_EXPIRED
+    - BOOKING_NOT_ACTIVE
+    - SERVER_ERROR
+  description: Машиночитаемый код доменной ошибки
+
+Platform:
+  type: string
+  enum:
+    - ios
+    - android
+
+# --- Common ---
+
+ErrorResponse:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      $ref: '#/ErrorCode'
+    message:
+      type: string
+      description: Человекочитаемое сообщение на русском (NFR-008)
+    details:
+      type: array
+      description: Детали ошибок валидации (для `VALIDATION_ERROR`)
+      items:
+        $ref: '#/ValidationErrorDetail'
+
+ValidationErrorDetail:
+  type: object
+  properties:
+    field:
+      type: string
+      example: client.phone
+    message:
+      type: string
+      example: Телефон должен быть в формате +7 и содержать 10 цифр
+
+PaginationMeta:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: Общее число элементов
+    limit:
+      type: integer
+    offset:
+      type: integer
+
+# --- Domain objects ---
+
+KartingCenterInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Апекс
+    address:
+      type: string
+      example: ул. Гоночная, 14, Воронеж
+    meetingPoint:
+      type: string
+      description: Место сбора перед заездом (R-015)
+      example: Регистрация у пит-лейна
+    totalKarts:
+      type: integer
+      example: 14
+
+TrackConfigurationSummary:
+  type: object
+  required:
+    - id
+    - name
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Короткая трасса
+    summary:
+      type: string
+      description: Краткое описание для карточки (FR-004)
+      example: 800 м, технический участок
+    layout:
+      $ref: '#/TrackLayout'
+
+TrackConfigurationDetail:
+  allOf:
+    - $ref: '#/TrackConfigurationSummary'
+    - type: object
+      required:
+        - pricePerParticipant
+      properties:
+        pricePerParticipant:
+          type: number
+          format: decimal
+          description: Цена за одного участника; прокат не влияет (FR-013)
+
+SlotTypeInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Новичковый заезд
+    maxParticipants:
+      type: integer
+      example: 8
+      description: Лимит участников на заезд (Q 2.1)
+    isBeginner:
+      type: boolean
+
+MarshalSummary:
+  type: object
+  required:
+    - id
+    - fullName
+  properties:
+    id:
+      type: string
+      format: uuid
+    fullName:
+      type: string
+      example: Дмитрий К.
+    photoUrl:
+      type: string
+      format: uri
+      nullable: true
+    avgRating:
+      type: number
+      format: float
+      minimum: 0
+      maximum: 5
+      nullable: true
+      description: Средний рейтинг (FR-028, v2)
+    ratingCount:
+      type: integer
+      minimum: 0
+      nullable: true
+      example: 28
+
+MarshalDetail:
+  allOf:
+    - $ref: '#/MarshalSummary'
+
+MarshalListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/MarshalSummary'
+
+RentalAvailability:
+  type: object
+  properties:
+    rentalAvailable:
+      type: boolean
+      description: |
+        Прокат доступен для записи на слот (FR-009).
+        При `false` слот недоступен для записи (не «только со своим»).
+
+EquipmentChoice:
+  type: object
+  required:
+    - mode
+  properties:
+    mode:
+      $ref: '#/EquipmentMode'
+    rentalHelmet:
+      type: boolean
+      default: false
+      description: Прокат шлема (при `mode=RENTAL`)
+    rentalBalaclava:
+      type: boolean
+      default: false
+      description: Прокат подшлемника (при `mode=RENTAL`)
+
+SlotSummary:
+  type: object
+  required:
+    - id
+    - startsAt
+    - hasSpots
+    - status
+    - isBookable
+    - marshal
+    - trackConfiguration
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    trackConfiguration:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Короткая трасса
+        summary:
+          type: string
+          example: 800 м
+    slotType:
+      $ref: '#/SlotTypeInfo'
+    marshal:
+      $ref: '#/MarshalSummary'
+    hasSpots:
+      type: boolean
+      description: «Есть места» / «Мест нет» для UI (FR-004, Q 2.6). Счётчик не показывается.
+    pricePerParticipant:
+      type: number
+      format: decimal
+      nullable: true
+      description: Цена за участника (FR-013)
+    status:
+      $ref: '#/SlotStatus'
+    isBookable:
+      type: boolean
+      description: |
+        Запись доступна: `hasSpots`, `status=OPEN`, прокат не исчерпан (FR-009).
+
+SlotDetail:
+  allOf:
+    - $ref: '#/SlotSummary'
+    - type: object
+      required:
+        - endsAt
+        - rentalAvailability
+      properties:
+        endsAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          example: 18
+          description: Длительность заезда (~15–20 мин)
+        trackConfigurationInfo:
+          $ref: '#/TrackConfigurationDetail'
+        rentalAvailability:
+          $ref: '#/RentalAvailability'
+        briefingRequiredDefault:
+          type: boolean
+          description: Нужен ли инструктаж по умолчанию для слота
+        briefingRequiredForClient:
+          type: boolean
+          nullable: true
+          description: |
+            Нужен ли инструктаж для текущего клиента (Q 1.7).
+            Заполняется при наличии ClientSession.
+        center:
+          $ref: '#/KartingCenterInfo'
+
+SlotListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/SlotSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+ClientContacts:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+      example: Иван
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+      example: '+79001234567'
+      description: Формат +7 и 10 цифр (Q 1.1)
+
+ClientProfile:
+  type: object
+  required:
+    - name
+    - phone
+    - isComplete
+    - isRegularClient
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+    isComplete:
+      type: boolean
+      description: Профиль заполнен и валиден
+    isRegularClient:
+      type: boolean
+      description: Метка постоянного клиента (FR-019). Только отображение, без привилегий в MVP.
+    briefingCompleted:
+      type: boolean
+      description: Клиент уже проходил инструктаж (Q 1.7). Read-only для клиента.
+
+UpdateProfileRequest:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+
+UpdateProfileResponse:
+  allOf:
+    - $ref: '#/ClientProfile'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT для последующих запросов (ClientSession)
+
+RegisterPushTokenRequest:
+  type: object
+  required:
+    - token
+    - platform
+  properties:
+    token:
+      type: string
+      description: Push-токен устройства (APNs / FCM)
+    platform:
+      $ref: '#/Platform'
+
+SlotRef:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    endsAt:
+      type: string
+      format: date-time
+    trackConfiguration:
+      $ref: '#/TrackConfigurationDetail'
+    slotType:
+      $ref: '#/SlotTypeInfo'
+    marshal:
+      $ref: '#/MarshalDetail'
+
+MarshalRating:
+  type: object
+  required:
+    - id
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    marshalId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+
+Booking:
+  type: object
+  required:
+    - id
+    - slotId
+    - status
+    - participantCount
+    - equipment
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    slotId:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    participantCount:
+      type: integer
+      minimum: 1
+      description: Количество участников в брони (FR-007)
+    equipment:
+      $ref: '#/EquipmentChoice'
+    totalPrice:
+      type: number
+      format: decimal
+      description: Итог к оплате на месте = pricePerParticipant × participantCount (FR-013)
+    briefingRequired:
+      type: boolean
+      description: Нужен ли инструктаж для этой брони (Q 1.7)
+    cancellationReason:
+      type: string
+      nullable: true
+      description: Причина при `CANCELLED_BY_CENTER` (R-008)
+    cancelledAt:
+      type: string
+      format: date-time
+      nullable: true
+    canCancel:
+      type: boolean
+      description: Можно ли отменить (статус ACTIVE и заезд в будущем)
+    isLateCancellation:
+      type: boolean
+      description: |
+        До начала < 1 ч (FR-016). Предупреждение показывается на клиенте;
+        отмена на сервере разрешена.
+    createdAt:
+      type: string
+      format: date-time
+    slot:
+      $ref: '#/SlotRef'
+    center:
+      $ref: '#/KartingCenterInfo'
+    marshalRating:
+      allOf:
+        - $ref: '#/MarshalRating'
+      nullable: true
+      description: |
+        `null` — можно оценить маршала (FR-026, v2);
+        объект — read-only оценка клиента для этого маршала (FR-027)
+
+BookingSummary:
+  type: object
+  required:
+    - id
+    - status
+    - participantCount
+    - slot
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    participantCount:
+      type: integer
+      minimum: 1
+    totalPrice:
+      type: number
+      format: decimal
+    slot:
+      type: object
+      required:
+        - startsAt
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+        trackConfiguration:
+          type: object
+          properties:
+            name:
+              type: string
+        marshal:
+          type: object
+          properties:
+            fullName:
+              type: string
+
+BookingListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/BookingSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+CreateBookingRequest:
+  type: object
+  required:
+    - slotId
+    - client
+    - participantCount
+    - equipment
+  properties:
+    slotId:
+      type: string
+      format: uuid
+    client:
+      $ref: '#/ClientContacts'
+    participantCount:
+      type: integer
+      minimum: 1
+      description: Количество участников; резервирует столько картов (FR-007, R-004)
+    equipment:
+      $ref: '#/EquipmentChoice'
+
+CreateBookingResponse:
+  allOf:
+    - $ref: '#/Booking'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT сессии клиента (при первой записи)
+
+CancelBookingResponse:
+  type: object
+  required:
+    - id
+    - status
+    - cancelledAt
+    - isLateCancellation
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      type: string
+      enum:
+        - CANCELLED_BY_CLIENT
+    cancelledAt:
+      type: string
+      format: date-time
+    isLateCancellation:
+      type: boolean
+      description: Отмена менее чем за 1 ч до начала (FR-016)
+
+CreateRatingRequest:
+  type: object
+  required:
+    - marshalId
+    - stars
+  properties:
+    bookingId:
+      type: string
+      format: uuid
+      description: |
+        Бронь для проверки статуса ATTENDED (UC-007).
+        Обязателен при первой оценке через SCR-011.
+    marshalId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+
+CreateRatingResponse:
+  type: object
+  required:
+    - id
+    - marshalId
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    bookingId:
+      type: string
+      format: uuid
+      nullable: true
+    marshalId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true

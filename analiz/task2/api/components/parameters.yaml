@@ -1,0 +1,101 @@
+BookingId:
+  name: bookingId
+  in: path
+  required: true
+  description: Идентификатор брони
+  schema:
+    type: string
+    format: uuid
+
+SlotId:
+  name: slotId
+  in: path
+  required: true
+  description: Идентификатор слота
+  schema:
+    type: string
+    format: uuid
+
+DateFrom:
+  name: dateFrom
+  in: query
+  required: false
+  description: |
+    Начало периода (включительно, ISO 8601 date).
+    При отсутствии `dateFrom` и `dateTo` — дефолт **7 дней** от текущей даты (FR-001, R-027).
+  schema:
+    type: string
+    format: date
+  example: '2026-07-03'
+
+DateTo:
+  name: dateTo
+  in: query
+  required: false
+  description: Конец периода (включительно, ISO 8601 date)
+  schema:
+    type: string
+    format: date
+  example: '2026-07-10'
+
+CuisineTypeIds:
+  name: cuisineTypeIds
+  in: query
+  required: false
+  description: Фильтр по типу кухни (OR внутри группы). Пустой массив не передаётся.
+  style: form
+  explode: true
+  schema:
+    type: array
+    items:
+      type: string
+      format: uuid
+
+TimeOfDay:
+  name: timeOfDay
+  in: query
+  required: false
+  description: |
+    Фильтр по времени суток (FR-003):
+    - `morning` — 06:00–11:59
+    - `afternoon` — 12:00–16:59
+    - `evening` — 17:00–23:59
+  schema:
+    $ref: './schemas.yaml#/TimeOfDay'
+
+Level:
+  name: level
+  in: query
+  required: false
+  description: Уровень программы класса (FR-003)
+  schema:
+    $ref: './schemas.yaml#/ClassLevel'
+
+BookingStatusFilter:
+  name: status
+  in: query
+  required: false
+  description: Фильтр по статусу брони
+  schema:
+    $ref: './schemas.yaml#/BookingStatus'
+
+Limit:
+  name: limit
+  in: query
+  required: false
+  description: Максимальное число элементов в ответе
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 100
+    default: 50
+
+Offset:
+  name: offset
+  in: query
+  required: false
+  description: Смещение для пагинации
+  schema:
+    type: integer
+    minimum: 0
+    default: 0

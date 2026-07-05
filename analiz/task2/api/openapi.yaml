@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: Кулинарная студия «Шеф-стол» — Client API
+  description: |
+    REST API клиентского Android-приложения для записи на кулинарные классы.
+
+    **Источники:** [data-model.md](../4-design/data-model.md), [api-sequence.md](../4-design/api-sequence.md),
+    [functional-requirements.md](../2-requirements/functional-requirements.md).
+
+    **Граница:** Client API проксирует чтение расписания из Existing Backend и выполняет
+    операции записи, отмены, аллергий и оценок шефов (роль «Клиент», R-028).
+
+    **Идентификация клиента:** достаточно имени и телефона при первой записи (Q 1.1).
+    После upsert профиля бэкенд выдаёт сессионный токен (`Bearer`) для последующих запросов.
+
+    **Не в MVP:** лист ожидания (FR-011), фильтр по шефу, онлайн-оплата, текстовые отзывы.
+  version: 1.0.0
+  contact:
+    name: Кулинарная студия «Шеф-стол»
+
+servers:
+  - url: https://api.chef-stol.example/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: slots
+    description: Расписание классов (read-only, FR-001–004)
+  - name: cuisine-types
+    description: Справочник типов кухни для фильтров (FR-003)
+  - name: bookings
+    description: Бронирования клиента (FR-006–FR-022)
+  - name: profile
+    description: Контактный профиль и аллергии клиента (FR-006, FR-012)
+  - name: allergies
+    description: Проверка совместимости аллергий с меню (FR-014)
+  - name: ratings
+    description: Оценки шефов (FR-024–FR-026)
+
+paths:
+  /slots:
+    $ref: './paths/slots.yaml#/~1slots'
+  /slots/{slotId}:
+    $ref: './paths/slots.yaml#/~1slots~1{slotId}'
+
+  /cuisine-types:
+    $ref: './paths/cuisine-types.yaml#/~1cuisine-types'
+
+  /bookings:
+    $ref: './paths/bookings.yaml#/~1bookings'
+  /bookings/{bookingId}:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}'
+  /bookings/{bookingId}/cancel:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}~1cancel'
+
+  /profile:
+    $ref: './paths/profile.yaml#/~1profile'
+  /profile/push-token:
+    $ref: './paths/profile.yaml#/~1profile~1push-token'
+
+  /allergies/check:
+    $ref: './paths/allergies.yaml#/~1allergies~1check'
+
+  /ratings:
+    $ref: './paths/ratings.yaml#/~1ratings'
+
+components:
+  securitySchemes:
+    ClientSession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Сессия клиента. Выдаётся в ответах `PATCH /profile` и `POST /bookings` (поле `sessionToken`).
+        Используется для доступа к «Мои записи» и профилю без повторного ввода телефона.

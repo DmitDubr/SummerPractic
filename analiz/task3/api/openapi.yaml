@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: Картинг-центр «Апекс» — Client API
+  description: |
+    REST API клиентского iOS-приложения для записи на заезды.
+
+    **Источники:** [data-model.md](../4-design/data-model.md), [api-sequence.md](../4-design/api-sequence.md),
+    [functional-requirements.md](../2-requirements/functional-requirements.md).
+
+    **Граница:** Client API проксирует чтение расписания из Existing Backend и выполняет
+    операции записи, отмены и оценок маршалов (роль «Клиент», R-028).
+
+    **Идентификация клиента:** достаточно имени и телефона при первой записи (Q 1.1).
+    После upsert профиля бэкенд выдаёт сессионный токен (`Bearer`) для последующих запросов.
+
+    **Не в MVP v1:** лист ожидания (FR-012), фильтр по конфигурации/уровню, рейтинги маршалов в UI (FR-028).
+    **v2 (Should):** push/SMS, оценки маршалов (FR-026–FR-029).
+  version: 1.0.0
+  contact:
+    name: Картинг-центр «Апекс»
+
+servers:
+  - url: https://api.apex-karting.example/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: slots
+    description: Расписание заездов (read-only, FR-001–005)
+  - name: marshals
+    description: Справочник маршалов для фильтров (FR-003)
+  - name: bookings
+    description: Бронирования клиента (FR-006–FR-018)
+  - name: profile
+    description: Контактный профиль клиента (FR-006, FR-019)
+  - name: ratings
+    description: Оценки маршалов (FR-026–FR-028, v2)
+
+paths:
+  /slots:
+    $ref: './paths/slots.yaml#/~1slots'
+  /slots/{slotId}:
+    $ref: './paths/slots.yaml#/~1slots~1{slotId}'
+
+  /marshals:
+    $ref: './paths/marshals.yaml#/~1marshals'
+
+  /bookings:
+    $ref: './paths/bookings.yaml#/~1bookings'
+  /bookings/{bookingId}:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}'
+  /bookings/{bookingId}/cancel:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}~1cancel'
+
+  /profile:
+    $ref: './paths/profile.yaml#/~1profile'
+  /profile/push-token:
+    $ref: './paths/profile.yaml#/~1profile~1push-token'
+
+  /ratings:
+    $ref: './paths/ratings.yaml#/~1ratings'
+
+components:
+  securitySchemes:
+    ClientSession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Сессия клиента. Выдаётся в ответах `PATCH /profile` и `POST /bookings` (поле `sessionToken`).
+        Используется для доступа к «Мои записи» и профилю без повторного ввода телефона.

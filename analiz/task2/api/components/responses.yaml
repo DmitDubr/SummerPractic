@@ -1,0 +1,103 @@
+BadRequest:
+  description: Ошибка валидации запроса
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: VALIDATION_ERROR
+        message: Некорректные данные запроса
+        details:
+          - field: client.phone
+            message: Телефон должен быть в формате +7 и содержать 10 цифр
+
+Unauthorized:
+  description: Требуется сессия клиента
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: VALIDATION_ERROR
+        message: Требуется авторизация
+
+NotFound:
+  description: Ресурс не найден
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: VALIDATION_ERROR
+        message: Ресурс не найден
+
+Forbidden:
+  description: Операция запрещена
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      examples:
+        slotRebookForbidden:
+          summary: Повторная запись на отменённый слот (R-008, FR-022)
+          value:
+            code: SLOT_REBOOK_FORBIDDEN
+            message: Запись на этот класс недоступна
+        bookingNotAttended:
+          summary: Оценка до посещения (FR-024)
+          value:
+            code: BOOKING_NOT_ATTENDED
+            message: Оценить можно после посещения класса
+        ratingPeriodExpired:
+          summary: Срок оценки истёк (FR-024)
+          value:
+            code: RATING_PERIOD_EXPIRED
+            message: Оценить можно в течение недели после класса
+        bookingNotActive:
+          summary: Изменение аллергий неактивной брони (FR-013)
+          value:
+            code: BOOKING_NOT_ACTIVE
+            message: Изменить аллергии можно только в активной записи
+
+Conflict:
+  description: Конфликт бизнес-правил
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      examples:
+        noSpots:
+          summary: Мест нет (гонка, R-004)
+          value:
+            code: NO_SPOTS
+            message: Места закончились
+        oneBookingPerDay:
+          summary: Лимит 1 бронь/день (FR-010)
+          value:
+            code: ONE_BOOKING_PER_DAY
+            message: Уже есть запись на этот день
+        slotCancelled:
+          summary: Класс отменён студией (FR-019)
+          value:
+            code: SLOT_CANCELLED
+            message: Класс отменён
+        rentalUnavailable:
+          summary: Прокат исчерпан при mode=RENTAL (FR-008)
+          value:
+            code: RENTAL_UNAVAILABLE
+            message: Прокат закончился. Запишитесь со своим снаряжением
+        alreadyCancelled:
+          summary: Бронь уже отменена
+          value:
+            code: ALREADY_CANCELLED
+            message: Запись уже отменена
+
+ServerError:
+  description: Внутренняя ошибка сервера
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: SERVER_ERROR
+        message: Внутренняя ошибка сервера

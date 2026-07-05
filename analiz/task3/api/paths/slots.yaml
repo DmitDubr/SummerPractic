@@ -1,0 +1,120 @@
+/slots:
+  get:
+    operationId: listSlots
+    tags:
+      - slots
+    summary: Список слотов расписания
+    description: |
+      Возвращает заезды за период с опциональными фильтрами (UC-001, FR-001–004).
+      Дефолтный период — **7 дней** от текущей даты при отсутствии `dateFrom`/`dateTo`.
+
+      Фильтры MVP: время суток, маршал (FR-003). Фильтр по конфигурации трассы и уровню **не в MVP v1**.
+      Клиенту не возвращается точное число свободных картов — только `hasSpots` (Q 2.6).
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/MarshalIds'
+      - $ref: '../components/parameters.yaml#/TimeOfDay'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Offset'
+    responses:
+      '200':
+        description: Список слотов
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotListResponse'
+            example:
+              items:
+                - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  startsAt: '2026-07-03T18:00:00+03:00'
+                  trackConfiguration:
+                    id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                    name: Короткая трасса
+                    summary: 800 м
+                  slotType:
+                    id: 2c3d4e5f-6789-0123-4567-890abcdef012
+                    name: Новичковый заезд
+                    maxParticipants: 8
+                    isBeginner: true
+                  marshal:
+                    id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    fullName: Дмитрий К.
+                  hasSpots: true
+                  pricePerParticipant: 3500
+                  status: OPEN
+                  isBookable: true
+              meta:
+                total: 1
+                limit: 50
+                offset: 0
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/slots/{slotId}:
+  get:
+    operationId: getSlot
+    tags:
+      - slots
+    summary: Детали слота (заезда)
+    description: |
+      Актуальные данные заезда для SCR-004: конфигурация трассы, маршал, доступность, прокат, цена.
+      Pre-check перед `POST /bookings` (api-sequence §4.3).
+
+      При наличии `ClientSession` возвращается `briefingRequiredForClient` (Q 1.7).
+    parameters:
+      - $ref: '../components/parameters.yaml#/SlotId'
+    security:
+      - ClientSession: []
+      - {}
+    responses:
+      '200':
+        description: Детали слота
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotDetail'
+            example:
+              id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              startsAt: '2026-07-03T18:00:00+03:00'
+              endsAt: '2026-07-03T18:18:00+03:00'
+              durationMinutes: 18
+              trackConfiguration:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Короткая трасса
+                summary: 800 м, технический участок
+              trackConfigurationInfo:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Короткая трасса
+                summary: 800 м, технический участок
+                layout: SHORT
+                pricePerParticipant: 3500
+              slotType:
+                id: 2c3d4e5f-6789-0123-4567-890abcdef012
+                name: Новичковый заезд
+                maxParticipants: 8
+                isBeginner: true
+              marshal:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                fullName: Дмитрий К.
+                photoUrl: https://cdn.example/marshals/dmitry.jpg
+              hasSpots: true
+              pricePerParticipant: 3500
+              status: OPEN
+              isBookable: true
+              rentalAvailability:
+                rentalAvailable: true
+              briefingRequiredDefault: true
+              briefingRequiredForClient: false
+              center:
+                id: 4e5f6789-0123-4567-890a-bcdef0123456
+                name: Апекс
+                address: ул. Гоночная, 14
+                meetingPoint: Регистрация у пит-лейна
+                totalKarts: 14
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

@@ -1,0 +1,728 @@
+# --- Enums ---
+
+SlotStatus:
+  type: string
+  enum:
+    - OPEN
+    - FULL
+    - CANCELLED
+    - RESCHEDULED
+  description: |
+    - `OPEN` — запись доступна
+    - `FULL` — мест нет (лист ожидания не реализуется, FR-011)
+    - `CANCELLED` — класс отменён студией (R-008, FR-022)
+    - `RESCHEDULED` — перенос времени или шефа (FR-023)
+
+BookingStatus:
+  type: string
+  enum:
+    - ACTIVE
+    - CANCELLED_BY_CLIENT
+    - CANCELLED_BY_STUDIO
+    - ATTENDED
+  description: |
+    - `ACTIVE` — запись подтверждена
+    - `CANCELLED_BY_CLIENT` — отменена клиентом (UC-004)
+    - `CANCELLED_BY_STUDIO` — отменена студией с причиной (FR-019)
+    - `ATTENDED` — класс посещён
+
+EquipmentMode:
+  type: string
+  enum:
+    - OWN
+    - RENTAL
+
+ClassLevel:
+  type: string
+  enum:
+    - BEGINNER
+    - INTERMEDIATE
+    - ADVANCED
+
+TimeOfDay:
+  type: string
+  enum:
+    - morning
+    - afternoon
+    - evening
+
+ErrorCode:
+  type: string
+  enum:
+    - VALIDATION_ERROR
+    - SLOT_REBOOK_FORBIDDEN
+    - NO_SPOTS
+    - ONE_BOOKING_PER_DAY
+    - SLOT_CANCELLED
+    - RENTAL_UNAVAILABLE
+    - ALREADY_CANCELLED
+    - BOOKING_NOT_ATTENDED
+    - RATING_PERIOD_EXPIRED
+    - BOOKING_NOT_ACTIVE
+    - SERVER_ERROR
+  description: Машиночитаемый код доменной ошибки
+
+Platform:
+  type: string
+  enum:
+    - android
+
+# --- Common ---
+
+ErrorResponse:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      $ref: '#/ErrorCode'
+    message:
+      type: string
+      description: Человекочитаемое сообщение на русском (NFR-008)
+    details:
+      type: array
+      description: Детали ошибок валидации (для `VALIDATION_ERROR`)
+      items:
+        $ref: '#/ValidationErrorDetail'
+
+ValidationErrorDetail:
+  type: object
+  properties:
+    field:
+      type: string
+      example: client.phone
+    message:
+      type: string
+      example: Телефон должен быть в формате +7 и содержать 10 цифр
+
+PaginationMeta:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: Общее число элементов
+    limit:
+      type: integer
+    offset:
+      type: integer
+
+# --- Domain objects ---
+
+StudioInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Шеф-стол
+    address:
+      type: string
+      example: ул. Кулинарная, 5, Воронеж
+    totalWorkstations:
+      type: integer
+      example: 12
+
+CuisineType:
+  type: object
+  required:
+    - id
+    - name
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Итальянская
+    isActive:
+      type: boolean
+
+CuisineTypeListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/CuisineType'
+
+ClassProgramInfo:
+  type: object
+  required:
+    - id
+    - name
+    - level
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Паста и соусы
+    menuSummary:
+      type: string
+      description: Краткое меню / что готовим (SCR-004, FR-004)
+      example: Тальятелле, песто, томатный соус
+    level:
+      $ref: '#/ClassLevel'
+    cuisineType:
+      $ref: '#/CuisineType'
+    price:
+      type: number
+      format: decimal
+      description: Цена класса; прокат не влияет (FR-015)
+
+ChefSummary:
+  type: object
+  required:
+    - id
+    - fullName
+  properties:
+    id:
+      type: string
+      format: uuid
+    fullName:
+      type: string
+      example: Мария С.
+    photoUrl:
+      type: string
+      format: uri
+      nullable: true
+    avgRating:
+      type: number
+      format: float
+      minimum: 0
+      maximum: 5
+      nullable: true
+      description: Средний рейтинг (FR-026)
+    ratingCount:
+      type: integer
+      minimum: 0
+      example: 28
+
+ChefDetail:
+  allOf:
+    - $ref: '#/ChefSummary'
+    - type: object
+      properties:
+        defaultCapacityLimit:
+          type: integer
+          enum:
+            - 8
+            - 12
+          description: Лимит группы для шефа (Q 2.1)
+
+RentalAvailability:
+  type: object
+  properties:
+    apronsAvailable:
+      type: integer
+      minimum: 0
+    knifeSetsAvailable:
+      type: integer
+      minimum: 0
+    rentalFullyExhausted:
+      type: boolean
+      description: Прокат полностью исчерпан (FR-008)
+
+EquipmentChoice:
+  type: object
+  required:
+    - mode
+  properties:
+    mode:
+      $ref: '#/EquipmentMode'
+    rentalApron:
+      type: boolean
+      default: false
+      description: Прокат фартука (при `mode=RENTAL`)
+    rentalKnives:
+      type: boolean
+      default: false
+      description: Прокат набора ножей (при `mode=RENTAL`)
+
+AllergyInfo:
+  type: object
+  required:
+    - allergiesText
+  properties:
+    allergiesText:
+      type: string
+      maxLength: 500
+      description: Свободный текст аллергий (FR-012)
+      example: Арахис, лактоза
+    menuWarningAcknowledged:
+      type: boolean
+      default: false
+      description: Клиент подтвердил предупреждение о несовместимости (FR-014)
+
+AllergyCheckRequest:
+  type: object
+  required:
+    - slotId
+    - allergiesText
+  properties:
+    slotId:
+      type: string
+      format: uuid
+    allergiesText:
+      type: string
+      maxLength: 500
+
+AllergyCheckResponse:
+  type: object
+  required:
+    - hasConflict
+  properties:
+    hasConflict:
+      type: boolean
+      description: Несовместимость с меню класса (FR-014)
+    message:
+      type: string
+      nullable: true
+      example: В меню класса есть орехи. Запись возможна — сообщите шефу на кухне.
+
+SlotSummary:
+  type: object
+  required:
+    - id
+    - startsAt
+    - freeSpots
+    - capacity
+    - status
+    - isBookable
+    - chef
+    - program
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    program:
+      type: object
+      required:
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Паста и соусы
+        level:
+          $ref: '#/ClassLevel'
+        cuisineTypeName:
+          type: string
+          example: Итальянская
+    chef:
+      $ref: '#/ChefSummary'
+    freeSpots:
+      type: integer
+      minimum: 0
+    capacity:
+      type: integer
+      minimum: 1
+    price:
+      type: number
+      format: decimal
+      nullable: true
+      description: Цена программы (FR-015)
+    status:
+      $ref: '#/SlotStatus'
+    isBookable:
+      type: boolean
+      description: |
+        Запись доступна с учётом статуса слота.
+        При исчерпании проката запись возможна с `equipment.mode=OWN` (FR-008).
+
+SlotDetail:
+  allOf:
+    - $ref: '#/SlotSummary'
+    - type: object
+      required:
+        - endsAt
+        - rentalAvailability
+      properties:
+        endsAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          example: 180
+          description: Длительность (~3 ч)
+        programInfo:
+          $ref: '#/ClassProgramInfo'
+        rentalAvailable:
+          type: boolean
+          description: Можно выбрать прокат на этом слоте
+        rentalAvailability:
+          $ref: '#/RentalAvailability'
+        allergyConflict:
+          type: boolean
+          description: |
+            Опционально: конфликт аллергий профиля с меню (если передан ClientSession).
+            Для явной проверки используйте `POST /allergies/check`.
+        studio:
+          $ref: '#/StudioInfo'
+
+SlotListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/SlotSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+ClientContacts:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+      example: Иван
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+      example: '+79001234567'
+      description: Формат +7 и 10 цифр (Q 1.1)
+
+ClientProfile:
+  type: object
+  required:
+    - name
+    - phone
+    - isComplete
+    - isRegularClient
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+    isComplete:
+      type: boolean
+      description: Профиль заполнен и валиден
+    isRegularClient:
+      type: boolean
+      description: Метка постоянного клиента (FR-028)
+    hasPriorityBooking:
+      type: boolean
+      description: Приоритет записи для постоянных клиентов (FR-028)
+    allergies:
+      type: string
+      nullable: true
+      maxLength: 500
+      description: Сохранённые аллергии для предзаполнения (FR-012)
+    allergiesUpdatedAt:
+      type: string
+      format: date-time
+      nullable: true
+
+UpdateProfileRequest:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+    allergies:
+      type: string
+      maxLength: 500
+      description: Опциональное обновление аллергий в профиле (FR-012)
+
+UpdateProfileResponse:
+  allOf:
+    - $ref: '#/ClientProfile'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT для последующих запросов (ClientSession)
+
+RegisterPushTokenRequest:
+  type: object
+  required:
+    - token
+    - platform
+  properties:
+    token:
+      type: string
+      description: Push-токен устройства (FCM)
+    platform:
+      $ref: '#/Platform'
+
+SlotRef:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    endsAt:
+      type: string
+      format: date-time
+    program:
+      $ref: '#/ClassProgramInfo'
+    chef:
+      $ref: '#/ChefDetail'
+
+ChefRating:
+  type: object
+  required:
+    - id
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    chefId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true
+
+Booking:
+  type: object
+  required:
+    - id
+    - slotId
+    - status
+    - equipment
+    - allergies
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    slotId:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    equipment:
+      $ref: '#/EquipmentChoice'
+    allergies:
+      $ref: '#/AllergyInfo'
+    totalPrice:
+      type: number
+      format: decimal
+      description: Цена программы; оплата на месте (FR-015)
+    cancellationReason:
+      type: string
+      nullable: true
+      description: Причина при `CANCELLED_BY_STUDIO` (R-008)
+    cancelledAt:
+      type: string
+      format: date-time
+      nullable: true
+    canCancel:
+      type: boolean
+      description: Можно ли отменить (статус ACTIVE и класс в будущем)
+    isLateCancellation:
+      type: boolean
+      description: |
+        До начала < 3 ч (FR-018). Предупреждение показывается на клиенте;
+        отмена на сервере разрешена.
+    createdAt:
+      type: string
+      format: date-time
+    slot:
+      $ref: '#/SlotRef'
+    studio:
+      $ref: '#/StudioInfo'
+    chefRating:
+      allOf:
+        - $ref: '#/ChefRating'
+      nullable: true
+      description: |
+        `null` — можно оценить шефа (FR-024);
+        объект — read-only оценка клиента для этого шефа (FR-025)
+    allergyConflict:
+      type: boolean
+      description: Актуальный конфликт аллергий с меню класса (FR-014)
+
+BookingSummary:
+  type: object
+  required:
+    - id
+    - status
+    - slot
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    totalPrice:
+      type: number
+      format: decimal
+    slot:
+      type: object
+      required:
+        - startsAt
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+        program:
+          type: object
+          properties:
+            name:
+              type: string
+        chef:
+          type: object
+          properties:
+            fullName:
+              type: string
+
+BookingListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/BookingSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+CreateBookingRequest:
+  type: object
+  required:
+    - slotId
+    - client
+    - equipment
+    - allergies
+  properties:
+    slotId:
+      type: string
+      format: uuid
+    client:
+      $ref: '#/ClientContacts'
+    equipment:
+      $ref: '#/EquipmentChoice'
+    allergies:
+      $ref: '#/AllergyInfo'
+
+CreateBookingResponse:
+  allOf:
+    - $ref: '#/Booking'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT сессии клиента (при первой записи)
+
+UpdateBookingAllergiesRequest:
+  type: object
+  required:
+    - allergies
+  properties:
+    allergies:
+      $ref: '#/AllergyInfo'
+
+CancelBookingResponse:
+  type: object
+  required:
+    - id
+    - status
+    - cancelledAt
+    - isLateCancellation
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      type: string
+      enum:
+        - CANCELLED_BY_CLIENT
+    cancelledAt:
+      type: string
+      format: date-time
+    isLateCancellation:
+      type: boolean
+      description: Отмена менее чем за 3 ч до начала (FR-018)
+
+CreateRatingRequest:
+  type: object
+  required:
+    - chefId
+    - stars
+  properties:
+    bookingId:
+      type: string
+      format: uuid
+      description: |
+        Бронь для проверки статуса ATTENDED (UC-007).
+        Обязателен при первой оценке через SCR-011.
+    chefId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+
+CreateRatingResponse:
+  type: object
+  required:
+    - id
+    - chefId
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    bookingId:
+      type: string
+      format: uuid
+      nullable: true
+    chefId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+      nullable: true

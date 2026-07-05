@@ -1,0 +1,60 @@
+/ratings:
+  post:
+    operationId: createOrUpdateMasterRating
+    tags:
+      - ratings
+    summary: Оценить мастера
+    description: |
+      Создание или обновление оценки мастера (UC-007, FR-021–FR-023).
+
+      **Правила:**
+      - только при `Booking.status = ATTENDED` (проверка через `bookingId` при первой оценке);
+      - в течение **7 дней** после занятия;
+      - **одна оценка на пару клиент–мастер**; повторный вызов обновляет оценку (FR-022);
+      - звёзды 1–5, без текстового отзыва.
+    security:
+      - ClientSession: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/CreateRatingRequest'
+          example:
+            bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+            masterId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            stars: 4
+    responses:
+      '200':
+        description: Оценка обновлена (FR-022)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CreateRatingResponse'
+            example:
+              id: 8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d
+              bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              masterId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              stars: 4
+              createdAt: '2026-07-03T20:30:00+03:00'
+              updatedAt: '2026-07-03T21:00:00+03:00'
+      '201':
+        description: Оценка создана
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CreateRatingResponse'
+            example:
+              id: 8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d
+              bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              masterId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              stars: 4
+              createdAt: '2026-07-03T20:30:00+03:00'
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses.yaml#/Forbidden'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
