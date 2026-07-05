@@ -1,0 +1,1444 @@
+openapi: 3.0.3
+info:
+  title: Скалодром «Вертикаль» — Client API
+  description: |
+    REST API клиентского мобильного приложения для записи на групповые тренировки.
+
+    **Источники:** [data-model.md](../4-design/data-model.md), [api-sequence.md](../4-design/api-sequence.md),
+    [functional-requirements.md](../2-requirements/functional-requirements.md).
+
+    **Граница:** Client API проксирует чтение расписания из Existing Backend и выполняет
+    операции записи, отмены, листа ожидания и оценок инструкторов (роль «Клиент», R-028).
+
+    **Идентификация клиента:** достаточно имени и телефона при первой записи (Q 1.1).
+    После upsert профиля бэкенд выдаёт сессионный токен (`Bearer`) для последующих запросов.
+  version: 1.0.0
+  contact:
+    name: Скалодром «Вертикаль»
+servers:
+  - url: https://api.vertical.example/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+tags:
+  - name: slots
+    description: Расписание тренировок (read-only, FR-001–004)
+  - name: instructors
+    description: Справочник инструкторов для фильтров (FR-014)
+  - name: bookings
+    description: Бронирования клиента (FR-005–011)
+  - name: waitlist
+    description: Лист ожидания (Q 1.4, 6.1)
+  - name: profile
+    description: Контактный профиль клиента (FR-016, Q 1.1)
+  - name: ratings
+    description: Оценки инструкторов (FR-012)
+paths:
+  /slots:
+    get:
+      operationId: listSlots
+      tags:
+        - slots
+      summary: Список слотов расписания
+      description: |
+        Возвращает слоты за период с опциональными фильтрами (UC-001, FR-001–004).
+        Дефолтный период — **7 дней** от текущей даты при отсутствии `dateFrom`/`dateTo`.
+      parameters:
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/InstructorIds'
+        - $ref: '#/components/parameters/TimeOfDay'
+        - $ref: '#/components/parameters/Level'
+      responses:
+        '200':
+          description: Список слотов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotListResponse'
+              example:
+                items:
+                  - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    startAt: '2026-07-03T18:00:00+03:00'
+                    format: Болдеринг для новичков
+                    zone: Болдеринг
+                    instructor:
+                      id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                      name: Анна К.
+                      rating: 4.8
+                    freeSpots: 3
+                    capacity: 8
+                    price: 1200
+                    status: OPEN
+                    isBookable: true
+                meta:
+                  total: 1
+                  limit: 50
+                  offset: 0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /slots/{slotId}:
+    get:
+      operationId: getSlot
+      tags:
+        - slots
+      summary: Детали слота
+      description: |
+        Актуальные данные слота для SCR-004: свободные места, прокат, статус.
+        Pre-check перед `POST /bookings` (api-sequence §4.3).
+      parameters:
+        - $ref: '#/components/parameters/SlotId'
+      responses:
+        '200':
+          description: Детали слота
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotDetail'
+              example:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                startAt: '2026-07-03T18:00:00+03:00'
+                endAt: '2026-07-03T19:30:00+03:00'
+                durationMinutes: 90
+                format: Болдеринг для новичков
+                zone: Болдеринг
+                zoneName: Болдеринг
+                instructor:
+                  id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  name: Анна К.
+                  photoUrl: https://cdn.example/instructors/anna.jpg
+                  rating: 4.2
+                  ratingCount: 28
+                freeSpots: 3
+                capacity: 8
+                basePrice: 1200
+                price: 1200
+                status: OPEN
+                isBookable: true
+                rentalAvailable: true
+                rentalAvailability:
+                  shoesAvailable: 5
+                  harnessAvailable: 3
+                  isBookable: true
+                gym:
+                  id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                  name: Вертикаль
+                  address: ул. Примерная, 1
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /slots/{slotId}/waitlist:
+    post:
+      operationId: joinWaitlist
+      tags:
+        - waitlist
+      summary: Вступить в лист ожидания
+      description: |
+        Встать в очередь на заполненный слот (SCR-012, Q 1.4).
+        Один клиент — одна позиция на слот; действует лимит 1 запись/день (Q 1.3).
+      parameters:
+        - $ref: '#/components/parameters/SlotId'
+      security:
+        - ClientSession: []
+        - {}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinWaitlistRequest'
+      responses:
+        '201':
+          description: Клиент добавлен в очередь
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistEntry'
+              example:
+                id: 5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b
+                slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                position: 2
+                status: WAITING
+                createdAt: '2026-07-03T11:00:00+03:00'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /instructors:
+    get:
+      operationId: listInstructors
+      tags:
+        - instructors
+      summary: Справочник инструкторов
+      description: |
+        Список инструкторов для фильтра SCR-003. Read-only (FR-014).
+        Рекомендуется кэшировать на клиенте при открытии bottom sheet.
+      responses:
+        '200':
+          description: Список инструкторов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstructorListResponse'
+              example:
+                items:
+                  - id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    name: Анна К.
+                    avatarUrl: https://cdn.example/instructors/anna.jpg
+                    rating: 4.8
+                  - id: 2a7f3c1d-8e4b-4a9c-b6d5-1f0e9a8b7c6d
+                    name: Игорь П.
+                    rating: 4.5
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /bookings:
+    get:
+      operationId: listBookings
+      tags:
+        - bookings
+      summary: Список броней клиента
+      description: |
+        Брони текущего клиента для SCR-008 (UC-003, FR-007).
+        Сегментация «Предстоящие» / «Прошедшие» выполняется на клиенте по `slot.startsAt` и `status`.
+        Поддерживает офлайн-кэш (Q 9.2).
+      security:
+        - ClientSession: []
+      parameters:
+        - $ref: '#/components/parameters/BookingStatusFilter'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Список броней
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingListResponse'
+              example:
+                items:
+                  - id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                    status: ACTIVE
+                    totalPrice: 1200
+                    slot:
+                      startsAt: '2026-07-09T18:30:00+03:00'
+                      format:
+                        name: Трассы с верёвкой
+                      zone:
+                        name: Трассы
+                      instructor:
+                        fullName: Алексей К.
+                meta:
+                  total: 1
+                  limit: 50
+                  offset: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      operationId: createBooking
+      tags:
+        - bookings
+      summary: Создать бронь
+      description: |
+        Запись на тренировку (UC-002, FR-005–006).
+
+        Client API выполняет upsert профиля клиента, pre-check слота и атомарное создание
+        брони в Existing Backend (api-sequence.md).
+
+        **Коды ошибок:** см. матрицу в api-sequence §5.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+            example:
+              slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              client:
+                name: Иван
+                phone: '+79001234567'
+              equipment:
+                mode: RENTAL
+                rentalShoes: true
+                rentalHarness: false
+      responses:
+        '201':
+          description: Бронь создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateBookingResponse'
+              example:
+                id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                status: ACTIVE
+                totalPrice: 1200
+                equipment:
+                  mode: RENTAL
+                  rentalShoes: true
+                  rentalHarness: false
+                createdAt: '2026-07-03T10:00:00+03:00'
+                sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /bookings/{bookingId}:
+    get:
+      operationId: getBooking
+      tags:
+        - bookings
+      summary: Детали брони
+      description: |
+        Полная информация о брони для SCR-009 (UC-003–005).
+        Поддерживает deep link из push-уведомлений (FR-010).
+      security:
+        - ClientSession: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Детали брони
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+              example:
+                id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                status: ACTIVE
+                totalPrice: 1200
+                equipment:
+                  mode: RENTAL
+                  rentalShoes: true
+                  rentalHarness: false
+                createdAt: '2026-07-03T10:00:00+03:00'
+                slot:
+                  id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  startsAt: '2026-07-09T18:30:00+03:00'
+                  endsAt: '2026-07-09T20:00:00+03:00'
+                  format:
+                    name: Трассы с верёвкой
+                  zone:
+                    name: Трассы
+                  instructor:
+                    id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    name: Алексей К.
+                    rating: 4.8
+                    ratingCount: 42
+                gym:
+                  name: Вертикаль
+                  address: ул. Примерная, 1
+                instructorRating: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /bookings/{bookingId}/cancel:
+    post:
+      operationId: cancelBooking
+      tags:
+        - bookings
+      summary: Отменить бронь клиентом
+      description: |
+        Отмена активной брони (UC-004, FR-008).
+
+        При отмене за ≥1 ч до начала место освобождается сразу (Q 3.2, 3.4, LOGIC-004).
+        Штрафы за позднюю отмену в MVP не применяются (Q 3.1).
+      security:
+        - ClientSession: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '200':
+          description: Бронь отменена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelBookingResponse'
+              example:
+                id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                status: CANCELLED_BY_CLIENT
+                cancelledAt: '2026-07-03T17:00:00+03:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Отмена запрещена (не в MVP — `CANCEL_TOO_LATE`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /bookings/{bookingId}/leave-waitlist:
+    post:
+      operationId: leaveWaitlist
+      tags:
+        - bookings
+      summary: Покинуть лист ожидания (через бронь)
+      description: |
+        Альтернатива `DELETE /waitlist/{waitlistEntryId}` для SCR-009
+        при `status=WAITLIST`.
+      security:
+        - ClientSession: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '204':
+          description: Клиент вышел из очереди
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /waitlist/{waitlistEntryId}:
+    get:
+      operationId: getWaitlistEntry
+      tags:
+        - waitlist
+      summary: Детали записи в листе ожидания
+      description: Актуальная позиция в очереди для SCR-012 / SCR-008.
+      security:
+        - ClientSession: []
+      parameters:
+        - $ref: '#/components/parameters/WaitlistEntryId'
+      responses:
+        '200':
+          description: Запись в листе ожидания
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WaitlistEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      operationId: deleteWaitlistEntry
+      tags:
+        - waitlist
+      summary: Покинуть лист ожидания
+      description: Удаление записи из очереди (SCR-012, SCR-008).
+      security:
+        - ClientSession: []
+      parameters:
+        - $ref: '#/components/parameters/WaitlistEntryId'
+      responses:
+        '204':
+          description: Запись удалена из очереди
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /profile:
+    get:
+      operationId: getProfile
+      tags:
+        - profile
+      summary: Получить контактный профиль
+      description: |
+        Контактные данные клиента для SCR-005 / SCR-013 (FR-016, Q 1.1).
+        `404` или пустой профиль — режим «первая запись».
+      security:
+        - ClientSession: []
+      responses:
+        '200':
+          description: Профиль клиента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientProfile'
+              example:
+                id: 6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+                name: Иван
+                phone: '+79001234567'
+                isComplete: true
+                isRegularClient: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Профиль не найден (первая запись)
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      operationId: updateProfile
+      tags:
+        - profile
+      summary: Обновить контактный профиль
+      description: |
+        Upsert имени и телефона (FR-016).
+        Вызывается из SCR-013 или неявно при `POST /bookings` (api-sequence §4.2).
+      security:
+        - ClientSession: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            example:
+              name: Иван
+              phone: '+79001234567'
+      responses:
+        '200':
+          description: Профиль сохранён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateProfileResponse'
+              example:
+                id: 6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c
+                name: Иван
+                phone: '+79001234567'
+                isComplete: true
+                isRegularClient: false
+                sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /profile/push-token:
+    post:
+      operationId: registerPushToken
+      tags:
+        - profile
+      summary: Зарегистрировать push-токен
+      description: |
+        Регистрация токена устройства после разрешения push (LOGIC-007, FR-010, FR-013).
+        Вызывается асинхронно после первой успешной брони; не блокирует UI.
+      security:
+        - ClientSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPushTokenRequest'
+            example:
+              token: fcm-device-token-example
+              platform: android
+      responses:
+        '204':
+          description: Токен зарегистрирован
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /ratings:
+    post:
+      operationId: createRating
+      tags:
+        - ratings
+      summary: Оценить инструктора
+      description: |
+        Создание оценки после посещённой тренировки (UC-006, FR-012, Q 5.1–5.2).
+
+        **Правила:**
+        - только при `Booking.status = ATTENDED`;
+        - одна оценка на бронь;
+        - звёзды 1–5.
+      security:
+        - ClientSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRatingRequest'
+            example:
+              bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              instructorId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+              stars: 4
+      responses:
+        '201':
+          description: Оценка сохранена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateRatingResponse'
+              example:
+                id: 8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d
+                bookingId: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                instructorId: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                stars: 4
+                createdAt: '2026-07-03T20:30:00+03:00'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    ClientSession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Сессия клиента. Выдаётся в ответах `PATCH /profile` и `POST /bookings` (поле `sessionToken`).
+        Используется для доступа к «Мои записи» и профилю без повторного ввода телефона.
+  parameters:
+    DateFrom:
+      name: dateFrom
+      in: query
+      required: false
+      description: |
+        Начало периода (включительно, ISO 8601 date).
+        При отсутствии `dateFrom` и `dateTo` — дефолт **7 дней** от текущей даты (FR-001, R-027).
+      schema:
+        type: string
+        format: date
+      example: '2026-07-03'
+    DateTo:
+      name: dateTo
+      in: query
+      required: false
+      description: Конец периода (включительно, ISO 8601 date)
+      schema:
+        type: string
+        format: date
+      example: '2026-07-10'
+    InstructorIds:
+      name: instructorIds
+      in: query
+      required: false
+      description: Фильтр по инструкторам (OR внутри группы). Пустой массив не передаётся.
+      style: form
+      explode: true
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+    TimeOfDay:
+      name: timeOfDay
+      in: query
+      required: false
+      description: |
+        Фильтр по времени суток:
+        - `morning` — 06:00–11:59
+        - `afternoon` — 12:00–16:59
+        - `evening` — 17:00–23:59
+      schema:
+        $ref: '#/components/schemas/TimeOfDay'
+    Level:
+      name: level
+      in: query
+      required: false
+      description: Уровень формата тренировки (Q 1.6)
+      schema:
+        $ref: '#/components/schemas/TrainingLevel'
+    SlotId:
+      name: slotId
+      in: path
+      required: true
+      description: Идентификатор слота
+      schema:
+        type: string
+        format: uuid
+    BookingStatusFilter:
+      name: status
+      in: query
+      required: false
+      description: Фильтр по статусу брони (например `WAITLIST` для SCR-008)
+      schema:
+        $ref: '#/components/schemas/BookingStatus'
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное число элементов в ответе
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      description: Идентификатор брони
+      schema:
+        type: string
+        format: uuid
+    WaitlistEntryId:
+      name: waitlistEntryId
+      in: path
+      required: true
+      description: Идентификатор записи в листе ожидания
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    TimeOfDay:
+      type: string
+      enum:
+        - morning
+        - afternoon
+        - evening
+    TrainingLevel:
+      type: string
+      enum:
+        - beginner
+        - intermediate
+        - advanced
+    InstructorSummary:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Анна К.
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          nullable: true
+          description: Средний рейтинг (Q 5.3)
+    SlotStatus:
+      type: string
+      enum:
+        - OPEN
+        - FULL
+        - CANCELLED
+        - UNAVAILABLE
+      description: |
+        - `OPEN` — запись доступна
+        - `FULL` — мест нет (лист ожидания)
+        - `CANCELLED` — слот отменён скалодромом (R-008, FR-011)
+        - `UNAVAILABLE` — прокатный фонд исчерпан (Q 2.4)
+    SlotSummary:
+      type: object
+      required:
+        - id
+        - startAt
+        - freeSpots
+        - capacity
+        - status
+        - isBookable
+        - instructor
+      properties:
+        id:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        format:
+          type: string
+          description: Название формата тренировки
+          example: Болдеринг для новичков
+        zone:
+          type: string
+          description: Название зоны
+          example: Болдеринг
+        instructor:
+          $ref: '#/components/schemas/InstructorSummary'
+        freeSpots:
+          type: integer
+          minimum: 0
+        capacity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+          nullable: true
+          description: Базовая цена тренировки
+        status:
+          $ref: '#/components/schemas/SlotStatus'
+        isBookable:
+          type: boolean
+          description: Запись доступна с учётом проката и статуса слота
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Общее число элементов
+        limit:
+          type: integer
+        offset:
+          type: integer
+    SlotListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotSummary'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - SLOT_REBOOK_FORBIDDEN
+        - NO_SPOTS
+        - ONE_BOOKING_PER_DAY
+        - SLOT_CANCELLED
+        - RENTAL_UNAVAILABLE
+        - ALREADY_CANCELLED
+        - CANCEL_TOO_LATE
+        - BOOKING_NOT_ATTENDED
+        - ALREADY_RATED
+        - ALREADY_IN_WAITLIST
+        - WAITLIST_NOT_FOUND
+        - SERVER_ERROR
+      description: Машиночитаемый код доменной ошибки
+    ValidationErrorDetail:
+      type: object
+      properties:
+        field:
+          type: string
+          example: client.phone
+        message:
+          type: string
+          example: Телефон должен быть в формате +7 и содержать 10 цифр
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          description: Человекочитаемое сообщение на русском (Q 9.3)
+        details:
+          type: array
+          description: Детали ошибок валидации (для `VALIDATION_ERROR`)
+          items:
+            $ref: '#/components/schemas/ValidationErrorDetail'
+    TrainingFormatInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Болдеринг для новичков
+        level:
+          $ref: '#/components/schemas/TrainingLevel'
+    RentalAvailability:
+      type: object
+      properties:
+        shoesAvailable:
+          type: integer
+          minimum: 0
+        harnessAvailable:
+          type: integer
+          minimum: 0
+        isBookable:
+          type: boolean
+          description: Можно ли записаться с учётом проката (Q 2.4)
+    PriceBreakdown:
+      type: object
+      description: Разбивка стоимости (LOGIC-003, Q 7.1)
+      properties:
+        trainingPrice:
+          type: number
+          format: double
+        shoesRentalPrice:
+          type: number
+          format: double
+        harnessRentalPrice:
+          type: number
+          format: double
+        totalPrice:
+          type: number
+          format: double
+    GymInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Вертикаль
+        address:
+          type: string
+          example: ул. Примерная, 1, Воронеж
+    SlotDetail:
+      allOf:
+        - $ref: '#/components/schemas/SlotSummary'
+        - type: object
+          required:
+            - endAt
+            - rentalAvailability
+          properties:
+            endAt:
+              type: string
+              format: date-time
+            durationMinutes:
+              type: integer
+              example: 90
+              description: Длительность (~1,5 ч)
+            zoneName:
+              type: string
+            formatInfo:
+              $ref: '#/components/schemas/TrainingFormatInfo'
+            basePrice:
+              type: number
+              format: double
+            rentalAvailable:
+              type: boolean
+              description: Алиас `rentalAvailability.isBookable` для UI
+            rentalAvailability:
+              $ref: '#/components/schemas/RentalAvailability'
+            priceBreakdown:
+              $ref: '#/components/schemas/PriceBreakdown'
+            gym:
+              $ref: '#/components/schemas/GymInfo'
+    ClientContacts:
+      type: object
+      required:
+        - name
+        - phone
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Иван
+        phone:
+          type: string
+          pattern: ^\+7\d{10}$
+          example: '+79001234567'
+          description: Формат +7 и 10 цифр (Q 1.1)
+    JoinWaitlistRequest:
+      type: object
+      properties:
+        client:
+          $ref: '#/components/schemas/ClientContacts'
+          description: Обязателен при отсутствии сессии ClientSession
+    WaitlistEntryStatus:
+      type: string
+      enum:
+        - WAITING
+        - NOTIFIED
+        - CONVERTED
+        - LEFT
+    WaitlistEntry:
+      type: object
+      required:
+        - id
+        - slotId
+        - position
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        slotId:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/WaitlistEntryStatus'
+        createdAt:
+          type: string
+          format: date-time
+        slot:
+          $ref: '#/components/schemas/SlotSummary'
+    InstructorListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstructorSummary'
+    BookingStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - CANCELLED_BY_CLIENT
+        - CANCELLED_BY_GYM
+        - ATTENDED
+        - WAITLIST
+      description: |
+        - `ACTIVE` — запись подтверждена
+        - `CANCELLED_BY_CLIENT` — отменена клиентом (UC-004)
+        - `CANCELLED_BY_GYM` — отменена скалодромом с причиной (FR-009)
+        - `ATTENDED` — тренировка посещена
+        - `WAITLIST` — клиент в листе ожидания
+    BookingSummary:
+      type: object
+      required:
+        - id
+        - status
+        - slot
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        totalPrice:
+          type: number
+          format: double
+        waitlistPosition:
+          type: integer
+          nullable: true
+        slot:
+          type: object
+          required:
+            - startsAt
+          properties:
+            startsAt:
+              type: string
+              format: date-time
+            format:
+              type: object
+              properties:
+                name:
+                  type: string
+            zone:
+              type: object
+              properties:
+                name:
+                  type: string
+            instructor:
+              type: object
+              properties:
+                fullName:
+                  type: string
+    BookingListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingSummary'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    EquipmentMode:
+      type: string
+      enum:
+        - OWN
+        - RENTAL
+    EquipmentChoice:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          $ref: '#/components/schemas/EquipmentMode'
+        rentalShoes:
+          type: boolean
+          default: false
+          description: Прокат скальников (при `mode=RENTAL`)
+        rentalHarness:
+          type: boolean
+          default: false
+          description: Прокат страховочной системы (при `mode=RENTAL`)
+    CreateBookingRequest:
+      type: object
+      required:
+        - slotId
+        - client
+        - equipment
+      properties:
+        slotId:
+          type: string
+          format: uuid
+        client:
+          $ref: '#/components/schemas/ClientContacts'
+        equipment:
+          $ref: '#/components/schemas/EquipmentChoice'
+    ZoneInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Болдеринг
+    InstructorDetail:
+      allOf:
+        - $ref: '#/components/schemas/InstructorSummary'
+        - type: object
+          properties:
+            photoUrl:
+              type: string
+              format: uri
+              nullable: true
+            ratingCount:
+              type: integer
+              minimum: 0
+              example: 28
+    SlotRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        format:
+          $ref: '#/components/schemas/TrainingFormatInfo'
+        zone:
+          $ref: '#/components/schemas/ZoneInfo'
+        instructor:
+          $ref: '#/components/schemas/InstructorDetail'
+    InstructorRating:
+      type: object
+      required:
+        - id
+        - stars
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+        createdAt:
+          type: string
+          format: date-time
+    Booking:
+      type: object
+      required:
+        - id
+        - slotId
+        - status
+        - equipment
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        slotId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        equipment:
+          $ref: '#/components/schemas/EquipmentChoice'
+        totalPrice:
+          type: number
+          format: double
+          description: Расчётная сумма к оплате на месте (LOGIC-003)
+        priceBreakdown:
+          $ref: '#/components/schemas/PriceBreakdown'
+        cancellationReason:
+          type: string
+          nullable: true
+          description: Причина при `CANCELLED_BY_GYM` (R-008)
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        waitlistPosition:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: Позиция в очереди при `status=WAITLIST`
+        createdAt:
+          type: string
+          format: date-time
+        slot:
+          $ref: '#/components/schemas/SlotRef'
+        gym:
+          $ref: '#/components/schemas/GymInfo'
+        instructorRating:
+          allOf:
+            - $ref: '#/components/schemas/InstructorRating'
+          nullable: true
+          description: null — можно оценить; объект — read-only (SCR-011)
+    CreateBookingResponse:
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          properties:
+            sessionToken:
+              type: string
+              description: JWT сессии клиента (при первой записи)
+    CancelBookingResponse:
+      type: object
+      required:
+        - id
+        - status
+        - cancelledAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - CANCELLED_BY_CLIENT
+        cancelledAt:
+          type: string
+          format: date-time
+    ClientProfile:
+      type: object
+      required:
+        - name
+        - phone
+        - isComplete
+        - isRegularClient
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+          pattern: ^\+7\d{10}$
+        isComplete:
+          type: boolean
+          description: Профиль заполнен и валиден
+        isRegularClient:
+          type: boolean
+          description: Метка постоянного клиента (Q 7.2)
+    UpdateProfileRequest:
+      type: object
+      required:
+        - name
+        - phone
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          pattern: ^\+7\d{10}$
+    UpdateProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/ClientProfile'
+        - type: object
+          properties:
+            sessionToken:
+              type: string
+              description: JWT для последующих запросов (ClientSession)
+    Platform:
+      type: string
+      enum:
+        - ios
+        - android
+    RegisterPushTokenRequest:
+      type: object
+      required:
+        - token
+        - platform
+      properties:
+        token:
+          type: string
+          description: Push-токен устройства (FCM/APNs)
+        platform:
+          $ref: '#/components/schemas/Platform'
+    CreateRatingRequest:
+      type: object
+      required:
+        - bookingId
+        - instructorId
+        - stars
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+        instructorId:
+          type: string
+          format: uuid
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+    CreateRatingResponse:
+      type: object
+      required:
+        - id
+        - bookingId
+        - instructorId
+        - stars
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+          format: uuid
+        instructorId:
+          type: string
+          format: uuid
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+        createdAt:
+          type: string
+          format: date-time
+  responses:
+    BadRequest:
+      description: Ошибка валидации запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              - field: client.phone
+                message: Телефон должен быть в формате +7 и содержать 10 цифр
+    ServerError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: SERVER_ERROR
+            message: Внутренняя ошибка сервера
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Ресурс не найден
+    Conflict:
+      description: Конфликт бизнес-правил
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            noSpots:
+              summary: Мест нет (гонка, R-004)
+              value:
+                code: NO_SPOTS
+                message: Места закончились
+            oneBookingPerDay:
+              summary: Лимит 1 бронь/день (Q 1.3)
+              value:
+                code: ONE_BOOKING_PER_DAY
+                message: Уже есть запись на этот день
+            slotCancelled:
+              summary: Слот отменён скалодромом
+              value:
+                code: SLOT_CANCELLED
+                message: Тренировка отменена
+            rentalUnavailable:
+              summary: Прокат исчерпан (Q 2.4)
+              value:
+                code: RENTAL_UNAVAILABLE
+                message: Прокат закончился
+            alreadyCancelled:
+              summary: Бронь уже отменена
+              value:
+                code: ALREADY_CANCELLED
+                message: Запись уже отменена
+            alreadyRated:
+              summary: Оценка уже отправлена
+              value:
+                code: ALREADY_RATED
+                message: Вы уже оценили этого инструктора
+            alreadyInWaitlist:
+              summary: Клиент уже в очереди
+              value:
+                code: ALREADY_IN_WAITLIST
+                message: Вы уже в листе ожидания на этот слот
+    Unauthorized:
+      description: Требуется сессия клиента
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: Требуется авторизация
+    Forbidden:
+      description: Операция запрещена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            slotRebookForbidden:
+              summary: Повторная запись на отменённый слот (R-008, FR-011)
+              value:
+                code: SLOT_REBOOK_FORBIDDEN
+                message: Запись на этот слот недоступна
+            bookingNotAttended:
+              summary: Оценка до посещения (FR-012)
+              value:
+                code: BOOKING_NOT_ATTENDED
+                message: Оценить можно после тренировки

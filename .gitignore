@@ -4,3 +4,13 @@
 
 # macOS
 .DS_Store
+
+# IDE
+.idea/
+*.iml
+
+# Gradle / KMP / Android build artifacts
+**/.gradle/
+**/build/
+local.properties
+.kotlin/

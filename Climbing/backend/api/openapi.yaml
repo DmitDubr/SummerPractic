@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: Скалодром «Вертикаль» — Client API
+  description: |
+    REST API клиентского мобильного приложения для записи на групповые тренировки.
+
+    **Источники:** [data-model.md](../4-design/data-model.md), [api-sequence.md](../4-design/api-sequence.md),
+    [functional-requirements.md](../2-requirements/functional-requirements.md).
+
+    **Граница:** Client API проксирует чтение расписания из Existing Backend и выполняет
+    операции записи, отмены, листа ожидания и оценок инструкторов (роль «Клиент», R-028).
+
+    **Идентификация клиента:** достаточно имени и телефона при первой записи (Q 1.1).
+    После upsert профиля бэкенд выдаёт сессионный токен (`Bearer`) для последующих запросов.
+  version: 1.0.0
+  contact:
+    name: Скалодром «Вертикаль»
+
+servers:
+  - url: https://api.vertical.example/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: slots
+    description: Расписание тренировок (read-only, FR-001–004)
+  - name: instructors
+    description: Справочник инструкторов для фильтров (FR-014)
+  - name: bookings
+    description: Бронирования клиента (FR-005–011)
+  - name: waitlist
+    description: Лист ожидания (Q 1.4, 6.1)
+  - name: profile
+    description: Контактный профиль клиента (FR-016, Q 1.1)
+  - name: ratings
+    description: Оценки инструкторов (FR-012)
+
+paths:
+  /slots:
+    $ref: './paths/slots.yaml#/~1slots'
+  /slots/{slotId}:
+    $ref: './paths/slots.yaml#/~1slots~1{slotId}'
+  /slots/{slotId}/waitlist:
+    $ref: './paths/waitlist.yaml#/~1slots~1{slotId}~1waitlist'
+
+  /instructors:
+    $ref: './paths/instructors.yaml#/~1instructors'
+
+  /bookings:
+    $ref: './paths/bookings.yaml#/~1bookings'
+  /bookings/{bookingId}:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}'
+  /bookings/{bookingId}/cancel:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}~1cancel'
+  /bookings/{bookingId}/leave-waitlist:
+    $ref: './paths/bookings.yaml#/~1bookings~1{bookingId}~1leave-waitlist'
+
+  /waitlist/{waitlistEntryId}:
+    $ref: './paths/waitlist.yaml#/~1waitlist~1{waitlistEntryId}'
+
+  /profile:
+    $ref: './paths/profile.yaml#/~1profile'
+  /profile/push-token:
+    $ref: './paths/profile.yaml#/~1profile~1push-token'
+
+  /ratings:
+    $ref: './paths/ratings.yaml#/~1ratings'
+
+components:
+  securitySchemes:
+    ClientSession:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Сессия клиента. Выдаётся в ответах `PATCH /profile` и `POST /bookings` (поле `sessionToken`).
+        Используется для доступа к «Мои записи» и профилю без повторного ввода телефона.

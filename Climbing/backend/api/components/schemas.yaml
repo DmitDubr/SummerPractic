@@ -1,0 +1,674 @@
+# --- Enums ---
+
+SlotStatus:
+  type: string
+  enum:
+    - OPEN
+    - FULL
+    - CANCELLED
+    - UNAVAILABLE
+  description: |
+    - `OPEN` — запись доступна
+    - `FULL` — мест нет (лист ожидания)
+    - `CANCELLED` — слот отменён скалодромом (R-008, FR-011)
+    - `UNAVAILABLE` — прокатный фонд исчерпан (Q 2.4)
+
+BookingStatus:
+  type: string
+  enum:
+    - ACTIVE
+    - CANCELLED_BY_CLIENT
+    - CANCELLED_BY_GYM
+    - ATTENDED
+    - WAITLIST
+  description: |
+    - `ACTIVE` — запись подтверждена
+    - `CANCELLED_BY_CLIENT` — отменена клиентом (UC-004)
+    - `CANCELLED_BY_GYM` — отменена скалодромом с причиной (FR-009)
+    - `ATTENDED` — тренировка посещена
+    - `WAITLIST` — клиент в листе ожидания
+
+EquipmentMode:
+  type: string
+  enum:
+    - OWN
+    - RENTAL
+
+TrainingLevel:
+  type: string
+  enum:
+    - beginner
+    - intermediate
+    - advanced
+
+TimeOfDay:
+  type: string
+  enum:
+    - morning
+    - afternoon
+    - evening
+
+WaitlistEntryStatus:
+  type: string
+  enum:
+    - WAITING
+    - NOTIFIED
+    - CONVERTED
+    - LEFT
+
+ErrorCode:
+  type: string
+  enum:
+    - VALIDATION_ERROR
+    - SLOT_REBOOK_FORBIDDEN
+    - NO_SPOTS
+    - ONE_BOOKING_PER_DAY
+    - SLOT_CANCELLED
+    - RENTAL_UNAVAILABLE
+    - ALREADY_CANCELLED
+    - CANCEL_TOO_LATE
+    - BOOKING_NOT_ATTENDED
+    - ALREADY_RATED
+    - ALREADY_IN_WAITLIST
+    - WAITLIST_NOT_FOUND
+    - SERVER_ERROR
+  description: Машиночитаемый код доменной ошибки
+
+Platform:
+  type: string
+  enum:
+    - ios
+    - android
+
+# --- Common ---
+
+ErrorResponse:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      $ref: '#/ErrorCode'
+    message:
+      type: string
+      description: Человекочитаемое сообщение на русском (Q 9.3)
+    details:
+      type: array
+      description: Детали ошибок валидации (для `VALIDATION_ERROR`)
+      items:
+        $ref: '#/ValidationErrorDetail'
+
+ValidationErrorDetail:
+  type: object
+  properties:
+    field:
+      type: string
+      example: client.phone
+    message:
+      type: string
+      example: Телефон должен быть в формате +7 и содержать 10 цифр
+
+PaginationMeta:
+  type: object
+  properties:
+    total:
+      type: integer
+      description: Общее число элементов
+    limit:
+      type: integer
+    offset:
+      type: integer
+
+# --- Domain objects ---
+
+GymInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Вертикаль
+    address:
+      type: string
+      example: ул. Примерная, 1, Воронеж
+
+ZoneInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Болдеринг
+
+TrainingFormatInfo:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Болдеринг для новичков
+    level:
+      $ref: '#/TrainingLevel'
+
+InstructorSummary:
+  type: object
+  required:
+    - id
+    - name
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Анна К.
+    avatarUrl:
+      type: string
+      format: uri
+      nullable: true
+    rating:
+      type: number
+      format: float
+      minimum: 0
+      maximum: 5
+      nullable: true
+      description: Средний рейтинг (Q 5.3)
+
+InstructorDetail:
+  allOf:
+    - $ref: '#/InstructorSummary'
+    - type: object
+      properties:
+        photoUrl:
+          type: string
+          format: uri
+          nullable: true
+        ratingCount:
+          type: integer
+          minimum: 0
+          example: 28
+
+RentalAvailability:
+  type: object
+  properties:
+    shoesAvailable:
+      type: integer
+      minimum: 0
+    harnessAvailable:
+      type: integer
+      minimum: 0
+    isBookable:
+      type: boolean
+      description: Можно ли записаться с учётом проката (Q 2.4)
+
+EquipmentChoice:
+  type: object
+  required:
+    - mode
+  properties:
+    mode:
+      $ref: '#/EquipmentMode'
+    rentalShoes:
+      type: boolean
+      default: false
+      description: Прокат скальников (при `mode=RENTAL`)
+    rentalHarness:
+      type: boolean
+      default: false
+      description: Прокат страховочной системы (при `mode=RENTAL`)
+
+PriceBreakdown:
+  type: object
+  description: Разбивка стоимости (LOGIC-003, Q 7.1)
+  properties:
+    trainingPrice:
+      type: number
+      format: double
+    shoesRentalPrice:
+      type: number
+      format: double
+    harnessRentalPrice:
+      type: number
+      format: double
+    totalPrice:
+      type: number
+      format: double
+
+SlotSummary:
+  type: object
+  required:
+    - id
+    - startAt
+    - freeSpots
+    - capacity
+    - status
+    - isBookable
+    - instructor
+  properties:
+    id:
+      type: string
+      format: uuid
+    startAt:
+      type: string
+      format: date-time
+    format:
+      type: string
+      description: Название формата тренировки
+      example: Болдеринг для новичков
+    zone:
+      type: string
+      description: Название зоны
+      example: Болдеринг
+    instructor:
+      $ref: '#/InstructorSummary'
+    freeSpots:
+      type: integer
+      minimum: 0
+    capacity:
+      type: integer
+      minimum: 1
+    price:
+      type: number
+      format: double
+      nullable: true
+      description: Базовая цена тренировки
+    status:
+      $ref: '#/SlotStatus'
+    isBookable:
+      type: boolean
+      description: Запись доступна с учётом проката и статуса слота
+
+SlotDetail:
+  allOf:
+    - $ref: '#/SlotSummary'
+    - type: object
+      required:
+        - endAt
+        - rentalAvailability
+      properties:
+        endAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          example: 90
+          description: Длительность (~1,5 ч)
+        zoneName:
+          type: string
+        formatInfo:
+          $ref: '#/TrainingFormatInfo'
+        basePrice:
+          type: number
+          format: double
+        rentalAvailable:
+          type: boolean
+          description: Алиас `rentalAvailability.isBookable` для UI
+        rentalAvailability:
+          $ref: '#/RentalAvailability'
+        priceBreakdown:
+          $ref: '#/PriceBreakdown'
+        gym:
+          $ref: '#/GymInfo'
+
+SlotListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/SlotSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+InstructorListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/InstructorSummary'
+
+ClientContacts:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+      example: Иван
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+      example: '+79001234567'
+      description: Формат +7 и 10 цифр (Q 1.1)
+
+ClientProfile:
+  type: object
+  required:
+    - name
+    - phone
+    - isComplete
+    - isRegularClient
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+    isComplete:
+      type: boolean
+      description: Профиль заполнен и валиден
+    isRegularClient:
+      type: boolean
+      description: Метка постоянного клиента (Q 7.2)
+
+UpdateProfileRequest:
+  type: object
+  required:
+    - name
+    - phone
+  properties:
+    name:
+      type: string
+      minLength: 1
+    phone:
+      type: string
+      pattern: '^\+7\d{10}$'
+
+UpdateProfileResponse:
+  allOf:
+    - $ref: '#/ClientProfile'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT для последующих запросов (ClientSession)
+
+RegisterPushTokenRequest:
+  type: object
+  required:
+    - token
+    - platform
+  properties:
+    token:
+      type: string
+      description: Push-токен устройства (FCM/APNs)
+    platform:
+      $ref: '#/Platform'
+
+SlotRef:
+  type: object
+  properties:
+    id:
+      type: string
+      format: uuid
+    startsAt:
+      type: string
+      format: date-time
+    endsAt:
+      type: string
+      format: date-time
+    format:
+      $ref: '#/TrainingFormatInfo'
+    zone:
+      $ref: '#/ZoneInfo'
+    instructor:
+      $ref: '#/InstructorDetail'
+
+InstructorRating:
+  type: object
+  required:
+    - id
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time
+
+Booking:
+  type: object
+  required:
+    - id
+    - slotId
+    - status
+    - equipment
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    slotId:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    equipment:
+      $ref: '#/EquipmentChoice'
+    totalPrice:
+      type: number
+      format: double
+      description: Расчётная сумма к оплате на месте (LOGIC-003)
+    priceBreakdown:
+      $ref: '#/PriceBreakdown'
+    cancellationReason:
+      type: string
+      nullable: true
+      description: Причина при `CANCELLED_BY_GYM` (R-008)
+    cancelledAt:
+      type: string
+      format: date-time
+      nullable: true
+    waitlistPosition:
+      type: integer
+      minimum: 1
+      nullable: true
+      description: Позиция в очереди при `status=WAITLIST`
+    createdAt:
+      type: string
+      format: date-time
+    slot:
+      $ref: '#/SlotRef'
+    gym:
+      $ref: '#/GymInfo'
+    instructorRating:
+      allOf:
+        - $ref: '#/InstructorRating'
+      nullable: true
+      description: "null — можно оценить; объект — read-only (SCR-011)"
+
+BookingSummary:
+  type: object
+  required:
+    - id
+    - status
+    - slot
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      $ref: '#/BookingStatus'
+    totalPrice:
+      type: number
+      format: double
+    waitlistPosition:
+      type: integer
+      nullable: true
+    slot:
+      type: object
+      required:
+        - startsAt
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+        format:
+          type: object
+          properties:
+            name:
+              type: string
+        zone:
+          type: object
+          properties:
+            name:
+              type: string
+        instructor:
+          type: object
+          properties:
+            fullName:
+              type: string
+
+BookingListResponse:
+  type: object
+  required:
+    - items
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/BookingSummary'
+    meta:
+      $ref: '#/PaginationMeta'
+
+CreateBookingRequest:
+  type: object
+  required:
+    - slotId
+    - client
+    - equipment
+  properties:
+    slotId:
+      type: string
+      format: uuid
+    client:
+      $ref: '#/ClientContacts'
+    equipment:
+      $ref: '#/EquipmentChoice'
+
+CreateBookingResponse:
+  allOf:
+    - $ref: '#/Booking'
+    - type: object
+      properties:
+        sessionToken:
+          type: string
+          description: JWT сессии клиента (при первой записи)
+
+CancelBookingResponse:
+  type: object
+  required:
+    - id
+    - status
+    - cancelledAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    status:
+      type: string
+      enum:
+        - CANCELLED_BY_CLIENT
+    cancelledAt:
+      type: string
+      format: date-time
+
+WaitlistEntry:
+  type: object
+  required:
+    - id
+    - slotId
+    - position
+    - status
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    slotId:
+      type: string
+      format: uuid
+    position:
+      type: integer
+      minimum: 1
+    status:
+      $ref: '#/WaitlistEntryStatus'
+    createdAt:
+      type: string
+      format: date-time
+    slot:
+      $ref: '#/SlotSummary'
+
+JoinWaitlistRequest:
+  type: object
+  properties:
+    client:
+      $ref: '#/ClientContacts'
+      description: Обязателен при отсутствии сессии ClientSession
+
+CreateRatingRequest:
+  type: object
+  required:
+    - bookingId
+    - instructorId
+    - stars
+  properties:
+    bookingId:
+      type: string
+      format: uuid
+    instructorId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+
+CreateRatingResponse:
+  type: object
+  required:
+    - id
+    - bookingId
+    - instructorId
+    - stars
+    - createdAt
+  properties:
+    id:
+      type: string
+      format: uuid
+    bookingId:
+      type: string
+      format: uuid
+    instructorId:
+      type: string
+      format: uuid
+    stars:
+      type: integer
+      minimum: 1
+      maximum: 5
+    createdAt:
+      type: string
+      format: date-time

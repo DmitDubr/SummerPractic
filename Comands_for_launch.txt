@@ -1,0 +1,34 @@
+Бекэнд (Docker Compose — файл docker-compose.yml только здесь!)
+Папка
+cd Climbing\backend
+
+Миграция
+docker compose up -d db
+docker compose run --rm migrate
+
+Запуск API
+docker compose up --build api
+
+Или всё сразу (db + migrate + api)
+docker compose up --build
+
+Компиляция без Docker
+go build ./cmd/api
+go run ./cmd/api
+
+Paths
+$env:Path += ";C:\Program Files\Go\bin;C:\Program Files\PostgreSQL\18\bin"
+
+Проверки
+curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/readyz
+
+Клиент (отдельно, без Docker Compose)
+Папка
+cd Climbing\client
+
+Компиляция
+.\gradlew.bat :webApp:wasmJsBrowserProductionWebpack
+
+Запуск dev-сервера (wasm)
+.\gradlew.bat :webApp:wasmJsBrowserDevelopmentRun

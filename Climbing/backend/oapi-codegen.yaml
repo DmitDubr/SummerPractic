@@ -1,0 +1,9 @@
+# oapi-codegen config (BE-01). Input: bundled OpenAPI from 01-analysis/api/.
+package: gen
+generate:
+  chi-server: true
+  models: true
+  embedded-spec: true
+output: internal/gen/api.gen.go
+output-options:
+  skip-prune: true

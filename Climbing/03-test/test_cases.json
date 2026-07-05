@@ -1,0 +1,2341 @@
+{
+  "meta": {
+    "project": "скалодром «Вертикаль»",
+    "source": "Climbing/03-test/TEST_PLAN.md, TEST_COVERAGE_PLAN.md",
+    "schema": "Climbing/03-test/json_schema.json",
+    "generatedAt": "2026-07-05",
+    "total": 64,
+    "reviewApplied": "2026-07-05"
+  },
+  "testCases": [
+    {
+      "labels": [
+        "T-001",
+        "BE-T01",
+        "L-001",
+        "I",
+        "existing",
+        "Профиль и сессия"
+      ],
+      "summary": "T-001: PATCH/GET profile, sessionToken из booking",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Профиль и сессия. Ссылка: L-001. Уровень: I. Приоритет: P1. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/профиль/t001",
+      "steps": [
+        {
+          "action": "PATCH /v1/profile с name и phone без Authorization",
+          "data": "name: Анна, phone: +79005556677",
+          "expectedResult": "200 OK, sessionToken и id клиента"
+        },
+        {
+          "action": "GET /v1/profile с Bearer sessionToken",
+          "data": "Authorization: Bearer <token>",
+          "expectedResult": "200 OK, те же name/phone/id"
+        },
+        {
+          "action": "POST /v1/bookings без токена с тем же phone",
+          "data": "client.phone совпадает с профилем",
+          "expectedResult": "201 Created, sessionToken совместим"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-002",
+        "BE-T01",
+        "CMP-T02",
+        "L-001",
+        "U-I",
+        "partial",
+        "Профиль и сессия"
+      ],
+      "summary": "T-002: Валидация имя/телефон, upsert по phone",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Профиль и сессия. Ссылка: L-001. Уровень: U/I. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/профиль/t002",
+      "steps": [
+        {
+          "action": "PATCH с невалидным телефоном",
+          "data": "phone: 123",
+          "expectedResult": "400 Bad Request"
+        },
+        {
+          "action": "PATCH с пустым именем",
+          "data": "name: (пусто)",
+          "expectedResult": "400 Bad Request"
+        },
+        {
+          "action": "PATCH с phone существующего клиента",
+          "data": "phone уже в БД",
+          "expectedResult": "Upsert: id не меняется"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-003",
+        "CMP-T12",
+        "SCR-013",
+        "UI-I",
+        "blocked",
+        "Профиль и сессия"
+      ],
+      "summary": "T-003: Summary, edit, бейдж «Постоянный клиент»",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Профиль и сессия. Ссылка: SCR-013. Уровень: UI/I. Приоритет: P2. Статус покрытия: 🚫.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/профиль/t003",
+      "steps": [
+        {
+          "action": "Открыть SCR-013 (profile sheet) из SCR-005 или SCR-008",
+          "data": "клиент с ≥1 завершённой записью",
+          "expectedResult": "Summary: имя, телефон, кол-во визитов"
+        },
+        {
+          "action": "Проверить режим просмотра",
+          "data": "",
+          "expectedResult": "Кнопка «Редактировать», поля read-only"
+        },
+        {
+          "action": "Tap «Редактировать»",
+          "data": "",
+          "expectedResult": "Поля name/phone editable, CTA «Сохранить»"
+        },
+        {
+          "action": "Сохранить изменения online",
+          "data": "name: новое значение",
+          "expectedResult": "PATCH /profile 200, summary обновлён"
+        },
+        {
+          "action": "Клиент с ≥5 визитами",
+          "data": "seed returning client",
+          "expectedResult": "Бейдж «Постоянный клиент» виден"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-004",
+        "CMP-T08",
+        "L-001",
+        "U",
+        "planned",
+        "Профиль и сессия"
+      ],
+      "summary": "T-004: Offline — блок submit профиля/записи",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Профиль и сессия. Ссылка: L-001. Уровень: U. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 5,
+      "testRepositoryPath": "/вертикаль/профиль/t004",
+      "steps": [
+        {
+          "action": "OfflinePolicyTest: isOnline=false в ProfileViewModel",
+          "data": "",
+          "expectedResult": "canSubmitProfile=false"
+        },
+        {
+          "action": "Tap «Сохранить» профиль offline",
+          "data": "",
+          "expectedResult": "CTA disabled, snackbar «Нет сети»"
+        },
+        {
+          "action": "OfflinePolicyTest: BookingViewModel SCR-005",
+          "data": "isOnline=false",
+          "expectedResult": "canSubmitBooking=false"
+        },
+        {
+          "action": "Tap «Записаться» offline",
+          "data": "форма заполнена",
+          "expectedResult": "CTA disabled, submit не вызывает API"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-005",
+        "BE-T02",
+        "CMP-T06",
+        "L-005",
+        "I",
+        "existing",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-005: listSlots + фильтры (дата, период, формат, инструктор)",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Расписание и фильтры. Ссылка: L-005. Уровень: I. Приоритет: P1. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/расписание/t005",
+      "steps": [
+        {
+          "action": "GET /v1/slots без фильтров",
+          "data": "",
+          "expectedResult": "200 OK, items из seed"
+        },
+        {
+          "action": "GET /v1/slots?date=YYYY-MM-DD",
+          "data": "дата в окне 7 дней",
+          "expectedResult": "Только слоты выбранного дня"
+        },
+        {
+          "action": "GET с period, format, instructorId",
+          "data": "комбинация фильтров",
+          "expectedResult": "Результат соответствует фильтрам"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-006",
+        "BE-T02",
+        "CMP-T06",
+        "L-005",
+        "U-UI",
+        "planned",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-006: Пустой результат, окно 7 дней",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Расписание и фильтры. Ссылка: L-005. Уровень: U/UI. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/расписание/t006",
+      "steps": [
+        {
+          "action": "Запросить слоты за дату без расписания",
+          "data": "date вне seed",
+          "expectedResult": "200 OK, items=[]"
+        },
+        {
+          "action": "Запросить date > today+7",
+          "data": "date за пределами окна",
+          "expectedResult": "400 или пустой результат по ТЗ"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-007",
+        "CMP-T15",
+        "SCR-001",
+        "UI-U",
+        "planned",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-007: Группировка, чипы, ★, skeleton, PTR, offline=Error",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Расписание и фильтры. Ссылка: SCR-001. Уровень: UI/U. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/расписание/t007",
+      "steps": [
+        {
+          "action": "Открыть SCR-001 online с seed-слотами",
+          "data": "",
+          "expectedResult": "Loading → Content"
+        },
+        {
+          "action": "Проверить группировку по дате",
+          "data": "≥2 дня в seed",
+          "expectedResult": "Заголовки дат, слоты под каждым днём"
+        },
+        {
+          "action": "Проверить чипы на карточке",
+          "data": "формат, время, инструктор",
+          "expectedResult": "Чипы соответствуют slot.format/period"
+        },
+        {
+          "action": "Проверить ★ инструктора",
+          "data": "instructor с rating>0",
+          "expectedResult": "Звёзды и значение на карточке"
+        },
+        {
+          "action": "Pull-to-refresh",
+          "data": "",
+          "expectedResult": "Индикатор PTR, список перезагружен"
+        },
+        {
+          "action": "Empty state",
+          "data": "фильтр без результатов (T-006 data)",
+          "expectedResult": "Empty UI, не Error"
+        },
+        {
+          "action": "Skeleton при slow network",
+          "data": "delay injection",
+          "expectedResult": "Shimmer/skeleton до загрузки"
+        },
+        {
+          "action": "Offline без кэша расписания",
+          "data": "airplane mode",
+          "expectedResult": "Error state (см. T-052)"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-008",
+        "CMP-T16",
+        "CMP-T17",
+        "SCR-002",
+        "SCR-003",
+        "SCR-002/003",
+        "UI",
+        "planned",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-008: Фильтр дат, формат/инструктор, ★ на чипах",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Расписание и фильтры. Ссылка: SCR-002/003. Уровень: UI. Приоритет: P3. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "low",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/расписание/t008",
+      "steps": [
+        {
+          "action": "SCR-002: открыть фильтр дат из SCR-001",
+          "data": "",
+          "expectedResult": "Bottom sheet / экран с 7 днями"
+        },
+        {
+          "action": "Выбрать день в окне 7 дней",
+          "data": "date=today+3",
+          "expectedResult": "Список фильтруется, chip даты активен"
+        },
+        {
+          "action": "Сбросить фильтр даты",
+          "data": "tap «Все дни»",
+          "expectedResult": "Показаны все дни в окне"
+        },
+        {
+          "action": "SCR-003: открыть фильтры формат/инструктор",
+          "data": "",
+          "expectedResult": "Чипы форматов и список инструкторов"
+        },
+        {
+          "action": "Выбрать формат BOULDERING",
+          "data": "",
+          "expectedResult": "Только bouldering-слоты, chip активен"
+        },
+        {
+          "action": "Выбрать инструктора",
+          "data": "instructorId из seed",
+          "expectedResult": "★ инструктора на chip фильтра"
+        },
+        {
+          "action": "Сброс всех фильтров",
+          "data": "",
+          "expectedResult": "Полный список восстановлен"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-009",
+        "CMP-T03",
+        "SCR-004",
+        "L-002",
+        "I-UI",
+        "partial",
+        "Доступность и прокат"
+      ],
+      "summary": "T-009: OPEN/FULL → waitlist CTA; bookable → «Записаться»",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Доступность и прокат. Ссылка: L-002. Уровень: I/UI. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/доступность/t009",
+      "steps": [
+        {
+          "action": "GET /v1/slots/{id} status=OPEN, freeSpots>0",
+          "data": "",
+          "expectedResult": "isBookable=true"
+        },
+        {
+          "action": "UI SCR-004: открыть bookable слот",
+          "data": "",
+          "expectedResult": "Primary CTA «Записаться» enabled"
+        },
+        {
+          "action": "GET слота FULL (freeSpots=0)",
+          "data": "",
+          "expectedResult": "isBookable=false"
+        },
+        {
+          "action": "UI SCR-004: открыть full слот",
+          "data": "",
+          "expectedResult": "CTA «В лист ожидания», нет «Записаться»"
+        },
+        {
+          "action": "Проверить цену и рейтинг на SCR-004",
+          "data": "",
+          "expectedResult": "Price label и ★ инструктора отображаются"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-010",
+        "BE-T14",
+        "SCR-004",
+        "L-002",
+        "I-UI",
+        "partial",
+        "Доступность и прокат"
+      ],
+      "summary": "T-010: Rental exhausted → banner, RENTAL_UNAVAILABLE",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Доступность и прокат. Ссылка: L-002. Уровень: I/UI. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/доступность/t010",
+      "steps": [
+        {
+          "action": "Исчерпать rental capacity",
+          "data": "все единицы заняты",
+          "expectedResult": "409 RENTAL_UNAVAILABLE при book"
+        },
+        {
+          "action": "UI SCR-004",
+          "data": "",
+          "expectedResult": "Banner «Прокат недоступен»"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-011",
+        "BE-T15",
+        "BE-04",
+        "I",
+        "planned",
+        "Доступность и прокат"
+      ],
+      "summary": "T-011: slots.status=UNAVAILABLE при исчерпании проката",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Доступность и прокат. Ссылка: BE-04. Уровень: I. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/доступность/t011",
+      "steps": [
+        {
+          "action": "Занять весь прокат на слоте",
+          "data": "rental bookings до capacity",
+          "expectedResult": "GET slot: status=UNAVAILABLE"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-012",
+        "BE-T16",
+        "BE-11",
+        "U-I",
+        "planned",
+        "Доступность и прокат"
+      ],
+      "summary": "T-012: isBookable с учётом выбора проката",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Доступность и прокат. Ссылка: BE-11. Уровень: U/I. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/доступность/t012",
+      "steps": [
+        {
+          "action": "Unit isBookable: OWN mode",
+          "data": "rental exhausted",
+          "expectedResult": "true если freeSpots>0"
+        },
+        {
+          "action": "Unit isBookable: RENTAL shoes",
+          "data": "shoes exhausted",
+          "expectedResult": "false"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-013",
+        "BE-T20",
+        "L-002",
+        "I-C",
+        "partial",
+        "Доступность и прокат"
+      ],
+      "summary": "T-013: Коды NO_SPOTS, SLOT_CANCELLED",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Доступность и прокат. Ссылка: L-002. Уровень: I/C. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/доступность/t013",
+      "steps": [
+        {
+          "action": "POST booking на FULL слот",
+          "data": "",
+          "expectedResult": "409 NO_SPOTS"
+        },
+        {
+          "action": "POST booking на cancelled slot",
+          "data": "",
+          "expectedResult": "409 SLOT_CANCELLED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-014",
+        "BE-T11",
+        "CMP-T01",
+        "L-003",
+        "U",
+        "existing",
+        "Цена"
+      ],
+      "summary": "T-014: Расчёт own / shoes / harness / both",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Цена. Ссылка: L-003. Уровень: U. Приоритет: P1. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 5,
+      "testRepositoryPath": "/вертикаль/цена/t014",
+      "steps": [
+        {
+          "action": "CalcTotalPrice mode=OWN",
+          "data": "без rental",
+          "expectedResult": "Базовая цена"
+        },
+        {
+          "action": "RENTAL + shoes",
+          "data": "",
+          "expectedResult": "+ цена обуви"
+        },
+        {
+          "action": "RENTAL + harness",
+          "data": "",
+          "expectedResult": "+ цена страховки"
+        },
+        {
+          "action": "RENTAL + both",
+          "data": "",
+          "expectedResult": "Сумма обуви и страховки"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-015",
+        "BE-T07",
+        "CMP-T01",
+        "L-003",
+        "I",
+        "existing",
+        "Цена"
+      ],
+      "summary": "T-015: Price breakdown в GET booking",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Цена. Ссылка: L-003. Уровень: I. Приоритет: P1. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/цена/t015",
+      "steps": [
+        {
+          "action": "POST /v1/bookings",
+          "data": "RENTAL shoes",
+          "expectedResult": "201 Created"
+        },
+        {
+          "action": "GET /v1/bookings/{id}",
+          "data": "",
+          "expectedResult": "priceBreakdown: base, rental, total"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-016",
+        "BE-T03",
+        "FR-005",
+        "I",
+        "existing",
+        "Запись"
+      ],
+      "summary": "T-016: createBooking happy path",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Запись. Ссылка: FR-005. Уровень: I. Приоритет: P0. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/запись/t016",
+      "steps": [
+        {
+          "action": "POST /v1/bookings",
+          "data": "valid slotId, mode=OWN",
+          "expectedResult": "201 ACTIVE"
+        },
+        {
+          "action": "GET /v1/bookings/{id}",
+          "data": "",
+          "expectedResult": "Детали совпадают"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-017",
+        "SCR-005",
+        "E2E-09",
+        "E2E-UI",
+        "partial",
+        "Запись"
+      ],
+      "summary": "T-017: Inline профиль, equipment, pre-check, gating CTA",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Запись. Ссылка: SCR-005. Уровень: E2E/UI. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/запись/t017",
+      "steps": [
+        {
+          "action": "Открыть SCR-005 из SCR-004 bookable слота",
+          "data": "slotId из seed",
+          "expectedResult": "Inline поля name/phone, equipment picker"
+        },
+        {
+          "action": "Заполнить профиль",
+          "data": "name + valid phone",
+          "expectedResult": "Validation OK, ошибок нет"
+        },
+        {
+          "action": "Выбрать equipment RENTAL + shoes",
+          "data": "",
+          "expectedResult": "Pre-check price API, total обновлён на экране"
+        },
+        {
+          "action": "Оставить phone пустым",
+          "data": "",
+          "expectedResult": "CTA «Записаться» disabled (gating)"
+        },
+        {
+          "action": "Заполнить все поля и submit",
+          "data": "mode=OWN",
+          "expectedResult": "201 → навигация на SCR-006 success"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-018",
+        "SCR-006",
+        "CMP-T13",
+        "E2E-UI",
+        "blocked",
+        "Запись"
+      ],
+      "summary": "T-018: Экран успеха, push dialog, token upload",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Запись. Ссылка: SCR-006. Уровень: E2E/UI. Приоритет: P1. Статус покрытия: 🚫.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/запись/t018",
+      "steps": [
+        {
+          "action": "Precondition: успешный booking (T-017)",
+          "data": "ACTIVE booking id",
+          "expectedResult": "SCR-006 открыт"
+        },
+        {
+          "action": "Проверить итоговый блок",
+          "data": "",
+          "expectedResult": "Слот, дата, цена, equipment совпадают с booking"
+        },
+        {
+          "action": "Push permission dialog",
+          "data": "первый успешный booking",
+          "expectedResult": "Системный диалог push (blocked: stub FCM)"
+        },
+        {
+          "action": "Accept push permission",
+          "data": "",
+          "expectedResult": "POST /v1/profile/push-token вызван (mock)"
+        },
+        {
+          "action": "Decline push permission",
+          "data": "reset app",
+          "expectedResult": "Экран success без crash, booking сохранён"
+        },
+        {
+          "action": "Tap «Мои записи»",
+          "data": "",
+          "expectedResult": "Навигация SCR-008, запись в upcoming"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-019",
+        "E2E-09",
+        "E2E",
+        "planned",
+        "Запись"
+      ],
+      "summary": "T-019: Schedule → detail → book → success → my bookings",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Запись. Ссылка: E2E-09. Уровень: E2E. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/запись/t019",
+      "steps": [
+        {
+          "action": "Precondition: авторизованный клиент, online",
+          "data": "dev seed",
+          "expectedResult": "SCR-001"
+        },
+        {
+          "action": "SCR-001: выбрать bookable слот",
+          "data": "freeSpots>0",
+          "expectedResult": "SCR-004 detail"
+        },
+        {
+          "action": "SCR-004: tap «Записаться»",
+          "data": "",
+          "expectedResult": "SCR-005 форма"
+        },
+        {
+          "action": "SCR-005: заполнить и submit",
+          "data": "mode=OWN, valid profile",
+          "expectedResult": "201 Created"
+        },
+        {
+          "action": "SCR-006: проверить success",
+          "data": "",
+          "expectedResult": "Данные booking корректны"
+        },
+        {
+          "action": "SCR-008: «Мои записи»",
+          "data": "",
+          "expectedResult": "Новая запись в секции upcoming"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-020",
+        "BE-T05",
+        "E2E-01",
+        "XL-01",
+        "I-E2E",
+        "existing",
+        "1 запись / день"
+      ],
+      "summary": "T-020: Waitlist утром → book вечером → ONE_BOOKING_PER_DAY",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: 1 запись / день. Ссылка: XL-01. Уровень: I/E2E. Приоритет: P0. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 30,
+      "testRepositoryPath": "/вертикаль/одна-запись-в-день/t020",
+      "steps": [
+        {
+          "action": "Join waitlist утром дня D",
+          "data": "FULL slot",
+          "expectedResult": "201 waitlist"
+        },
+        {
+          "action": "Book вечерний слот дня D",
+          "data": "",
+          "expectedResult": "409 ONE_BOOKING_PER_DAY"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-021",
+        "BE-T19",
+        "Q-1.3",
+        "Q 1.3",
+        "I",
+        "planned",
+        "1 запись / день"
+      ],
+      "summary": "T-021: ACTIVE + waitlist в один день → 409",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: 1 запись / день. Ссылка: Q 1.3. Уровень: I. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/одна-запись-в-день/t021",
+      "steps": [
+        {
+          "action": "ACTIVE booking на день D",
+          "data": "",
+          "expectedResult": "201"
+        },
+        {
+          "action": "Join waitlist другого слота дня D",
+          "data": "",
+          "expectedResult": "409 ONE_BOOKING_PER_DAY"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-022",
+        "BE-T20",
+        "CMP-T05",
+        "SCR-007",
+        "U-C",
+        "planned",
+        "1 запись / день"
+      ],
+      "summary": "T-022: Маппинг API code → навигация (NO_SPOTS→SCR-012)",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: 1 запись / день. Ссылка: SCR-007. Уровень: U/C. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 8,
+      "testRepositoryPath": "/вертикаль/одна-запись-в-день/t022",
+      "steps": [
+        {
+          "action": "mapBookingError(NO_SPOTS)",
+          "data": "",
+          "expectedResult": "→ SCR-012"
+        },
+        {
+          "action": "mapBookingError(ONE_BOOKING_PER_DAY)",
+          "data": "",
+          "expectedResult": "→ SCR-012/008"
+        },
+        {
+          "action": "mapBookingError(RENTAL_UNAVAILABLE)",
+          "data": "",
+          "expectedResult": "stay SCR-005"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-023",
+        "BE-T04",
+        "CMP-T11",
+        "SCR-012",
+        "I-E2E",
+        "partial",
+        "Waitlist"
+      ],
+      "summary": "T-023: join waitlist, позиция, leave, re-join",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Waitlist. Ссылка: SCR-012. Уровень: I/E2E. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/waitlist/t023",
+      "steps": [
+        {
+          "action": "POST /v1/waitlist",
+          "data": "FULL slot",
+          "expectedResult": "201, position>=1"
+        },
+        {
+          "action": "GET waitlist entry",
+          "data": "",
+          "expectedResult": "Позиция отображается"
+        },
+        {
+          "action": "DELETE leave",
+          "data": "",
+          "expectedResult": "200 OK"
+        },
+        {
+          "action": "POST re-join",
+          "data": "",
+          "expectedResult": "201 новая position"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-024",
+        "BE-T17",
+        "BE-05",
+        "I",
+        "planned",
+        "Waitlist"
+      ],
+      "summary": "T-024: Статус CONVERTED после успешной записи",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Waitlist. Ссылка: BE-05. Уровень: I. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/waitlist/t024",
+      "steps": [
+        {
+          "action": "Join waitlist",
+          "data": "",
+          "expectedResult": "status=ACTIVE"
+        },
+        {
+          "action": "Book после освобождения места",
+          "data": "",
+          "expectedResult": "201 booking"
+        },
+        {
+          "action": "GET waitlist entry",
+          "data": "",
+          "expectedResult": "status=CONVERTED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-025",
+        "E2E-10",
+        "E2E",
+        "planned",
+        "Waitlist"
+      ],
+      "summary": "T-025: Full slot → join → leave → re-join",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Waitlist. Ссылка: E2E-10. Уровень: E2E. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/waitlist/t025",
+      "steps": [
+        {
+          "action": "SCR-001: найти FULL слот",
+          "data": "freeSpots=0",
+          "expectedResult": "SCR-004 с waitlist CTA"
+        },
+        {
+          "action": "SCR-004 → SCR-012: join waitlist",
+          "data": "",
+          "expectedResult": "201, position отображается"
+        },
+        {
+          "action": "SCR-012: leave waitlist",
+          "data": "DELETE",
+          "expectedResult": "200, позиция исчезла"
+        },
+        {
+          "action": "SCR-012: re-join",
+          "data": "POST",
+          "expectedResult": "201, новая position (может отличаться)"
+        },
+        {
+          "action": "SCR-008: waitlist entry в списке",
+          "data": "",
+          "expectedResult": "Badge waitlist, tap → SCR-009/012"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-026",
+        "BE-T08",
+        "E2E-02",
+        "XL-02",
+        "I-E2E",
+        "existing",
+        "Отмена"
+      ],
+      "summary": "T-026: Early cancel ≥60 мин → spot + rental + waitlist notify",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: XL-02. Уровень: I/E2E. Приоритет: P0. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 30,
+      "testRepositoryPath": "/вертикаль/отмена/t026",
+      "steps": [
+        {
+          "action": "Booking + waitlist другим клиентом",
+          "data": "",
+          "expectedResult": "Waitlist в очереди"
+        },
+        {
+          "action": "Early cancel ≥60 мин",
+          "data": "",
+          "expectedResult": "200 OK"
+        },
+        {
+          "action": "GET slot",
+          "data": "",
+          "expectedResult": "freeSpots++, rental released"
+        },
+        {
+          "action": "Waitlist notify",
+          "data": "stub",
+          "expectedResult": "Push отправлен"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-027",
+        "BE-T12",
+        "§7.3-п.5",
+        "§7.3 п.5",
+        "I",
+        "planned",
+        "Отмена"
+      ],
+      "summary": "T-027: Late cancel <60 мин: 200, место не освобождается",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: §7.3 п.5. Уровень: I. Приоритет: P0. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/отмена/t027",
+      "steps": [
+        {
+          "action": "Booking <60 мин до start",
+          "data": "",
+          "expectedResult": "ACTIVE"
+        },
+        {
+          "action": "Late cancel DELETE",
+          "data": "",
+          "expectedResult": "200 CANCELLED"
+        },
+        {
+          "action": "GET slot",
+          "data": "",
+          "expectedResult": "freeSpots без изменений"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-028",
+        "BE-T13",
+        "TZ-INT-04",
+        "I",
+        "planned",
+        "Отмена"
+      ],
+      "summary": "T-028: Отмена после start → CANCEL_TOO_LATE",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: TZ-INT-04. Уровень: I. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/отмена/t028",
+      "steps": [
+        {
+          "action": "Booking после slot.start",
+          "data": "",
+          "expectedResult": "ACTIVE в БД"
+        },
+        {
+          "action": "DELETE cancel",
+          "data": "",
+          "expectedResult": "409 CANCEL_TOO_LATE"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-029",
+        "BE-T18",
+        "L-004-11",
+        "I",
+        "planned",
+        "Отмена"
+      ],
+      "summary": "T-029: Повторная отмена → ALREADY_CANCELLED",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: L-004-11. Уровень: I. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/отмена/t029",
+      "steps": [
+        {
+          "action": "Early cancel",
+          "data": "",
+          "expectedResult": "200 CANCELLED"
+        },
+        {
+          "action": "Повторный DELETE",
+          "data": "",
+          "expectedResult": "409 ALREADY_CANCELLED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-030",
+        "BE-T14",
+        "E2E-03",
+        "XL-03",
+        "I-E2E",
+        "planned",
+        "Отмена"
+      ],
+      "summary": "T-030: Rental exhausted → early cancel → снова доступно",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: XL-03. Уровень: I/E2E. Приоритет: P0. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 30,
+      "testRepositoryPath": "/вертикаль/отмена/t030",
+      "steps": [
+        {
+          "action": "Исчерпать rental capacity на слоте",
+          "data": "RENTAL bookings до capacity",
+          "expectedResult": "GET slot: rental unavailable / UNAVAILABLE"
+        },
+        {
+          "action": "Early cancel одной RENTAL записи",
+          "data": "≥60 мин до start",
+          "expectedResult": "200 OK, booking CANCELLED"
+        },
+        {
+          "action": "GET /v1/slots/{id}",
+          "data": "",
+          "expectedResult": "Rental capacity освобождена, isBookable с rental=true"
+        },
+        {
+          "action": "POST /v1/bookings с rental на тот же слот",
+          "data": "новый клиент, RENTAL shoes",
+          "expectedResult": "201 Created (E2E-03 rebook OK)"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-031",
+        "CMP-T04",
+        "SCR-010",
+        "U-UI",
+        "partial",
+        "Отмена"
+      ],
+      "summary": "T-031: Early/late warning, bottom sheet",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: SCR-010. Уровень: U/UI. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/отмена/t031",
+      "steps": [
+        {
+          "action": "canCancel early",
+          "data": "start +2h",
+          "expectedResult": "early warning"
+        },
+        {
+          "action": "canCancel late",
+          "data": "start +30m",
+          "expectedResult": "late warning"
+        },
+        {
+          "action": "UI SCR-010 sheet",
+          "data": "",
+          "expectedResult": "Текст политики корректен"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-032",
+        "E2E-05",
+        "E2E-11",
+        "E2E-05/11",
+        "E2E",
+        "planned",
+        "Отмена"
+      ],
+      "summary": "T-032: Late cancel UI + cancel journey",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: E2E-05/11. Уровень: E2E. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/отмена/t032",
+      "steps": [
+        {
+          "action": "Precondition: ACTIVE booking <60 мин до start",
+          "data": "seed или time mock",
+          "expectedResult": "SCR-008 upcoming"
+        },
+        {
+          "action": "SCR-009: tap «Отменить»",
+          "data": "",
+          "expectedResult": "SCR-010 bottom sheet"
+        },
+        {
+          "action": "SCR-010: проверить late warning",
+          "data": "start через 30 мин",
+          "expectedResult": "Текст «Место может не освободиться»"
+        },
+        {
+          "action": "Подтвердить отмену",
+          "data": "DELETE booking",
+          "expectedResult": "200, status CANCELLED на SCR-009"
+        },
+        {
+          "action": "SCR-008: pull-to-refresh",
+          "data": "",
+          "expectedResult": "Запись перемещена в past / badge «Отменена»"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-033",
+        "CMP-T08",
+        "L-004",
+        "U",
+        "planned",
+        "Отмена"
+      ],
+      "summary": "T-033: Offline — блок отмены без сети",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: L-004. Уровень: U. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 5,
+      "testRepositoryPath": "/вертикаль/отмена/t033",
+      "steps": [
+        {
+          "action": "OfflinePolicyTest.canCancelBooking",
+          "data": "isOnline=false, ACTIVE booking",
+          "expectedResult": "canCancel=false"
+        },
+        {
+          "action": "SCR-009: открыть booking offline",
+          "data": "cached booking",
+          "expectedResult": "Кнопка «Отменить» disabled или hidden"
+        },
+        {
+          "action": "Tap cancel offline",
+          "data": "",
+          "expectedResult": "Snackbar «Нет сети», API не вызывается"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-034",
+        "BE-T10",
+        "BE-02",
+        "U",
+        "existing",
+        "Отмена"
+      ],
+      "summary": "T-034: Граница ровно 60 мин (isEarlyCancel)",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Отмена. Ссылка: BE-02. Уровень: U. Приоритет: P0. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/отмена/t034",
+      "steps": [
+        {
+          "action": "isEarlyCancel diff=60m",
+          "data": "",
+          "expectedResult": "true"
+        },
+        {
+          "action": "isEarlyCancel diff=59m",
+          "data": "",
+          "expectedResult": "false"
+        },
+        {
+          "action": "isEarlyCancel diff=61m",
+          "data": "",
+          "expectedResult": "true"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-035",
+        "BE-T06",
+        "E2E-04",
+        "FR-011",
+        "I-E2E",
+        "existing",
+        "Gym cancel / rebook"
+      ],
+      "summary": "T-035: Gym cancel → rebook same slot forbidden",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Gym cancel / rebook. Ссылка: FR-011. Уровень: I/E2E. Приоритет: P0. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 30,
+      "testRepositoryPath": "/вертикаль/gym-cancel/t035",
+      "steps": [
+        {
+          "action": "Создать booking, admin gym cancel",
+          "data": "reason: закрытие зала",
+          "expectedResult": "status=GYM_CANCELLED"
+        },
+        {
+          "action": "POST /v1/bookings same slotId same client",
+          "data": "",
+          "expectedResult": "409 REBOOK_FORBIDDEN"
+        },
+        {
+          "action": "POST /v1/bookings другой slotId same client",
+          "data": "slot другого времени",
+          "expectedResult": "201 Created (E2E-04 other slot OK)"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-036",
+        "BE-T23",
+        "FR-009",
+        "SCR-009",
+        "I-UI",
+        "planned",
+        "Gym cancel / rebook"
+      ],
+      "summary": "T-036: Admin cancel + reason в API, UI SCR-009",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Gym cancel / rebook. Ссылка: FR-009. Уровень: I/UI. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/gym-cancel/t036",
+      "steps": [
+        {
+          "action": "Admin cancel API с reason",
+          "data": "reason: погода",
+          "expectedResult": "200, reason в GET booking"
+        },
+        {
+          "action": "UI SCR-009",
+          "data": "",
+          "expectedResult": "Причина отображается"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-037",
+        "CMP-T07",
+        "CMP-T22",
+        "SCR-008",
+        "UI",
+        "partial",
+        "Мои записи"
+      ],
+      "summary": "T-037: Upcoming/past, бейджи, empty, PTR",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Мои записи. Ссылка: SCR-008. Уровень: UI. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/мои-записи/t037",
+      "steps": [
+        {
+          "action": "SCR-008: клиент с upcoming и past bookings",
+          "data": "seed mixed",
+          "expectedResult": "Две секции Upcoming / Past"
+        },
+        {
+          "action": "Upcoming: проверить карточки",
+          "data": "",
+          "expectedResult": "Дата, слот, badge ACTIVE"
+        },
+        {
+          "action": "Past: проверить badge ATTENDED/CANCELLED",
+          "data": "",
+          "expectedResult": "BookingStatusBadgeTest все статусы"
+        },
+        {
+          "action": "Empty state",
+          "data": "новый клиент без записей",
+          "expectedResult": "Illustration + «Нет записей»"
+        },
+        {
+          "action": "Pull-to-refresh online",
+          "data": "",
+          "expectedResult": "Список обновлён"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-038",
+        "SCR-009",
+        "E2E-11",
+        "UI-E2E",
+        "partial",
+        "Мои записи"
+      ],
+      "summary": "T-038: CTA по статусу, gym reason, leave waitlist, rate",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Мои записи. Ссылка: SCR-009. Уровень: UI/E2E. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/мои-записи/t038",
+      "steps": [
+        {
+          "action": "SCR-009 ACTIVE booking",
+          "data": "",
+          "expectedResult": "CTA «Отменить», нет rate"
+        },
+        {
+          "action": "SCR-009 GYM_CANCELLED",
+          "data": "reason в API",
+          "expectedResult": "CTA absent, текст причины от gym"
+        },
+        {
+          "action": "SCR-009 waitlist entry",
+          "data": "",
+          "expectedResult": "CTA «Покинуть лист ожидания»"
+        },
+        {
+          "action": "Leave waitlist",
+          "data": "DELETE",
+          "expectedResult": "200, возврат SCR-008"
+        },
+        {
+          "action": "SCR-009 ATTENDED без rating",
+          "data": "",
+          "expectedResult": "CTA «Оценить» → SCR-011 (blocked if no UI)"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-039",
+        "CMP-T09",
+        "CMP-08",
+        "I-E2E",
+        "planned",
+        "Мои записи"
+      ],
+      "summary": "T-039: Offline cache bookings, invalidation",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Мои записи. Ссылка: CMP-08. Уровень: I/E2E. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/мои-записи/t039",
+      "steps": [
+        {
+          "action": "Загрузить bookings online",
+          "data": "",
+          "expectedResult": "Кэш заполнен"
+        },
+        {
+          "action": "Offline GET bookings",
+          "data": "",
+          "expectedResult": "Данные из кэша"
+        },
+        {
+          "action": "Online create booking",
+          "data": "",
+          "expectedResult": "Кэш инвалидирован"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-040",
+        "E2E-06",
+        "CMP-T08",
+        "E2E",
+        "planned",
+        "Мои записи"
+      ],
+      "summary": "T-040: Offline: просмотр кэша; cancel/create disabled",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Мои записи. Ссылка: E2E-06. Уровень: E2E. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/мои-записи/t040",
+      "steps": [
+        {
+          "action": "Online: загрузить SCR-008",
+          "data": "",
+          "expectedResult": "Bookings от API, кэш заполнен"
+        },
+        {
+          "action": "Airplane mode: открыть SCR-008",
+          "data": "",
+          "expectedResult": "Cached bookings видны, offline banner"
+        },
+        {
+          "action": "Tap booking → SCR-009 offline",
+          "data": "",
+          "expectedResult": "Детали из кэша"
+        },
+        {
+          "action": "Tap «Отменить» offline",
+          "data": "",
+          "expectedResult": "Disabled, snackbar «Нет сети»"
+        },
+        {
+          "action": "SCR-001 → bookable slot → SCR-005 offline",
+          "data": "",
+          "expectedResult": "Submit disabled"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-041",
+        "BE-T09",
+        "L-006",
+        "I",
+        "existing",
+        "Рейтинг"
+      ],
+      "summary": "T-041: Rating только после ATTENDED",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Рейтинг. Ссылка: L-006. Уровень: I. Приоритет: P1. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/рейтинг/t041",
+      "steps": [
+        {
+          "action": "Создать booking, довести до ATTENDED",
+          "data": "admin mark attended",
+          "expectedResult": "status=ATTENDED"
+        },
+        {
+          "action": "POST /v1/bookings/{id}/rating",
+          "data": "score: 5",
+          "expectedResult": "201 Created, rating сохранён"
+        },
+        {
+          "action": "GET /v1/bookings/{id}",
+          "data": "",
+          "expectedResult": "rating.score=5 в ответе"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-042",
+        "BE-T24",
+        "§7.3-п.7",
+        "§7.3 п.7",
+        "I",
+        "planned",
+        "Рейтинг"
+      ],
+      "summary": "T-042: Повторный POST → ALREADY_RATED",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Рейтинг. Ссылка: §7.3 п.7. Уровень: I. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/рейтинг/t042",
+      "steps": [
+        {
+          "action": "Rating ATTENDED booking",
+          "data": "score=4",
+          "expectedResult": "201"
+        },
+        {
+          "action": "Повторный POST rating",
+          "data": "score=5",
+          "expectedResult": "409 ALREADY_RATED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-043",
+        "BE-T25",
+        "L-006",
+        "I",
+        "planned",
+        "Рейтинг"
+      ],
+      "summary": "T-043: BOOKING_NOT_ATTENDED",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Рейтинг. Ссылка: L-006. Уровень: I. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/рейтинг/t043",
+      "steps": [
+        {
+          "action": "POST rating ACTIVE booking",
+          "data": "score=3",
+          "expectedResult": "409 BOOKING_NOT_ATTENDED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-044",
+        "CMP-T10",
+        "SCR-011",
+        "UI-I",
+        "blocked",
+        "Рейтинг"
+      ],
+      "summary": "T-044: Звёзды, submit, 409 flows",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Рейтинг. Ссылка: SCR-011. Уровень: UI/I. Приоритет: P1. Статус покрытия: 🚫.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/рейтинг/t044",
+      "steps": [
+        {
+          "action": "Precondition: ATTENDED booking без rating",
+          "data": "BE seed",
+          "expectedResult": "SCR-009 → «Оценить»"
+        },
+        {
+          "action": "SCR-011: открыть экран оценки",
+          "data": "",
+          "expectedResult": "5 звёзд, submit disabled до выбора"
+        },
+        {
+          "action": "Выбрать 4 звезды и submit",
+          "data": "",
+          "expectedResult": "201, возврат SCR-009, badge «Оценено»"
+        },
+        {
+          "action": "Stub: повторный submit",
+          "data": "ALREADY_RATED mock",
+          "expectedResult": "409 dialog «Вы уже оценили»"
+        },
+        {
+          "action": "Stub: submit для ACTIVE",
+          "data": "BOOKING_NOT_ATTENDED",
+          "expectedResult": "409 dialog, остаёмся на SCR-011"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-045",
+        "E2E-07",
+        "BE-T09",
+        "E2E",
+        "partial",
+        "Рейтинг"
+      ],
+      "summary": "T-045: Rating ATTENDED only + repeat error",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Рейтинг. Ссылка: E2E-07. Уровень: E2E. Приоритет: P1. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/рейтинг/t045",
+      "steps": [
+        {
+          "action": "BE: booking ATTENDED без rating",
+          "data": "integration seed",
+          "expectedResult": "API ready"
+        },
+        {
+          "action": "SCR-009: tap «Оценить»",
+          "data": "",
+          "expectedResult": "SCR-011 (или API-only если UI blocked)"
+        },
+        {
+          "action": "Submit rating score=5",
+          "data": "",
+          "expectedResult": "201 Created"
+        },
+        {
+          "action": "Повторный submit score=4",
+          "data": "",
+          "expectedResult": "409 ALREADY_RATED, сообщение пользователю"
+        },
+        {
+          "action": "Попытка rate ACTIVE booking через API",
+          "data": "status=ACTIVE",
+          "expectedResult": "409 BOOKING_NOT_ATTENDED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-046",
+        "L-006",
+        "SCR-003",
+        "SCR-004",
+        "UI",
+        "partial",
+        "Рейтинг"
+      ],
+      "summary": "T-046: Агрегат ★ на listSlots / SCR-003–004",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Рейтинг. Ссылка: L-006. Уровень: UI. Приоритет: P2. Статус покрытия: 🔶.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/рейтинг/t046",
+      "steps": [
+        {
+          "action": "GET /v1/slots",
+          "data": "",
+          "expectedResult": "instructor.averageRating в items"
+        },
+        {
+          "action": "SCR-001: карточка слота",
+          "data": "",
+          "expectedResult": "★ и значение рейтинга инструктора"
+        },
+        {
+          "action": "SCR-003: chip инструктора в фильтре",
+          "data": "",
+          "expectedResult": "★ рядом с именем"
+        },
+        {
+          "action": "SCR-004: блок инструктора",
+          "data": "",
+          "expectedResult": "Average rating отображается"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-047",
+        "BE-T21",
+        "CMP-T13",
+        "L-007",
+        "I",
+        "planned",
+        "Push и уведомления"
+      ],
+      "summary": "T-047: POST push-token",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Push и уведомления. Ссылка: L-007. Уровень: I. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/push/t047",
+      "steps": [
+        {
+          "action": "POST /v1/profile/push-token",
+          "data": "token, platform: android",
+          "expectedResult": "200/204 OK"
+        },
+        {
+          "action": "Повторный POST тем же token",
+          "data": "",
+          "expectedResult": "Upsert без дубликатов"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-048",
+        "BE-T22",
+        "FR-013",
+        "I",
+        "planned",
+        "Push и уведомления"
+      ],
+      "summary": "T-048: Reminder scheduler 24h/2h → payload",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Push и уведомления. Ссылка: FR-013. Уровень: I. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/push/t048",
+      "steps": [
+        {
+          "action": "Scheduler tick 24h до slot",
+          "data": "",
+          "expectedResult": "Payload reminder 24h"
+        },
+        {
+          "action": "Scheduler tick 2h до slot",
+          "data": "",
+          "expectedResult": "Payload reminder 2h"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-049",
+        "E2E-08",
+        "XL-09",
+        "E2E",
+        "blocked",
+        "Push и уведомления"
+      ],
+      "summary": "T-049: Push waitlist → deep link → запись",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Push и уведомления. Ссылка: XL-09. Уровень: E2E. Приоритет: P1. Статус покрытия: 🚫.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/push/t049",
+      "steps": [
+        {
+          "action": "Precondition: клиент в waitlist, место освободилось",
+          "data": "BE notify stub",
+          "expectedResult": "Push payload waitlist"
+        },
+        {
+          "action": "Получить push notification",
+          "data": "FCM stub",
+          "expectedResult": "Title/body о свободном месте"
+        },
+        {
+          "action": "Tap push (deep link)",
+          "data": "waitlist slotId",
+          "expectedResult": "SCR-005 booking form открыт"
+        },
+        {
+          "action": "Заполнить и submit booking",
+          "data": "valid profile",
+          "expectedResult": "201, waitlist CONVERTED"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-050",
+        "CMP-T14",
+        "L-007",
+        "U",
+        "blocked",
+        "Push и уведомления"
+      ],
+      "summary": "T-050: Deep link: waitlist→SCR-005, gym→SCR-009",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Push и уведомления. Ссылка: L-007. Уровень: U. Приоритет: P1. Статус покрытия: 🚫.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 5,
+      "testRepositoryPath": "/вертикаль/push/t050",
+      "steps": [
+        {
+          "action": "DeepLinkRouterTest: waitlist payload",
+          "data": "slotId=abc, type=waitlist",
+          "expectedResult": "Route → SCR-005(slotId)"
+        },
+        {
+          "action": "DeepLinkRouterTest: gym cancel payload",
+          "data": "bookingId=xyz, type=gym_cancel",
+          "expectedResult": "Route → SCR-009(bookingId)"
+        },
+        {
+          "action": "DeepLinkRouterTest: reminder payload",
+          "data": "bookingId, type=reminder",
+          "expectedResult": "Route → SCR-009"
+        },
+        {
+          "action": "Unknown/malformed deep link",
+          "data": "invalid payload",
+          "expectedResult": "Fallback SCR-001, no crash"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-051",
+        "L-008",
+        "CMP-T15",
+        "U-UI",
+        "planned",
+        "Состояния UI"
+      ],
+      "summary": "T-051: Loading / Empty / Error на ключевых экранах",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Состояния UI. Ссылка: L-008. Уровень: U/UI. Приоритет: P2. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/состояния-ui/t051",
+      "steps": [
+        {
+          "action": "SCR-001 Loading",
+          "data": "slow API mock",
+          "expectedResult": "Skeleton/shimmer visible"
+        },
+        {
+          "action": "SCR-001 Empty",
+          "data": "filter no results",
+          "expectedResult": "Empty illustration + текст"
+        },
+        {
+          "action": "SCR-001 Error",
+          "data": "API 500",
+          "expectedResult": "Error state + retry"
+        },
+        {
+          "action": "SCR-008 Empty",
+          "data": "no bookings",
+          "expectedResult": "Empty «Нет записей»"
+        },
+        {
+          "action": "SCR-008 Error online",
+          "data": "API fail, no cache",
+          "expectedResult": "Error + retry"
+        },
+        {
+          "action": "SCR-005 Error",
+          "data": "pre-check fail",
+          "expectedResult": "Error message, форма сохранена"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-052",
+        "L-008",
+        "SCR-001",
+        "UI",
+        "existing",
+        "Состояния UI"
+      ],
+      "summary": "T-052: Schedule offline → Error (без кэша)",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Состояния UI. Ссылка: L-008. Уровень: UI. Приоритет: P2. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/состояния-ui/t052",
+      "steps": [
+        {
+          "action": "Отключить сеть",
+          "data": "",
+          "expectedResult": "Offline"
+        },
+        {
+          "action": "Открыть SCR-001",
+          "data": "",
+          "expectedResult": "Error state без кэша"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-053",
+        "CMP-T05",
+        "SCR-007",
+        "U-UI",
+        "planned",
+        "Состояния UI"
+      ],
+      "summary": "T-053: Ошибки записи → правильный экран",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Состояния UI. Ссылка: SCR-007. Уровень: U/UI. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/состояния-ui/t053",
+      "steps": [
+        {
+          "action": "BookingErrorMapper: ONE_BOOKING_PER_DAY",
+          "data": "",
+          "expectedResult": "Navigate SCR-012 или SCR-008 с пояснением"
+        },
+        {
+          "action": "BookingErrorMapper: NO_SPOTS",
+          "data": "",
+          "expectedResult": "Navigate SCR-012 waitlist"
+        },
+        {
+          "action": "BookingErrorMapper: RENTAL_UNAVAILABLE",
+          "data": "",
+          "expectedResult": "Stay SCR-005, inline error banner"
+        },
+        {
+          "action": "BookingErrorMapper: SLOT_CANCELLED",
+          "data": "",
+          "expectedResult": "Navigate SCR-001 + snackbar"
+        },
+        {
+          "action": "UI SCR-007: каждый код",
+          "data": "mock 409 responses",
+          "expectedResult": "Правильный экран и текст ошибки"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-054",
+        "E2E-12",
+        "CMP-T05",
+        "E2E",
+        "planned",
+        "Состояния UI"
+      ],
+      "summary": "T-054: NO_SPOTS→SCR-012; RENTAL_UNAVAILABLE→stay",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Состояния UI. Ссылка: E2E-12. Уровень: E2E. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/состояния-ui/t054",
+      "steps": [
+        {
+          "action": "Book FULL slot UI",
+          "data": "",
+          "expectedResult": "NO_SPOTS → SCR-012"
+        },
+        {
+          "action": "Book rental exhausted",
+          "data": "",
+          "expectedResult": "RENTAL_UNAVAILABLE → stay SCR-005"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-055",
+        "BE-T20",
+        "BE-10",
+        "C",
+        "planned",
+        "Контракт и инфра"
+      ],
+      "summary": "T-055: Все 409-коды create/join/cancel vs OpenAPI",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Контракт и инфра. Ссылка: BE-10. Уровень: C. Приоритет: P1. Статус покрытия: ⬜.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 8,
+      "testRepositoryPath": "/вертикаль/контракт/t055",
+      "steps": [
+        {
+          "action": "createBooking 409 codes из OpenAPI",
+          "data": "ONE_BOOKING_PER_DAY, NO_SPOTS, RENTAL_UNAVAILABLE, SLOT_CANCELLED, REBOOK_FORBIDDEN",
+          "expectedResult": "Каждый: 409 + code в body"
+        },
+        {
+          "action": "joinWaitlist 409 codes",
+          "data": "ONE_BOOKING_PER_DAY, ALREADY_ON_WAITLIST",
+          "expectedResult": "409 + code"
+        },
+        {
+          "action": "cancelBooking 409 codes",
+          "data": "ALREADY_CANCELLED, CANCEL_TOO_LATE",
+          "expectedResult": "409 + code"
+        },
+        {
+          "action": "Contract test: enum в schemas.yaml",
+          "data": "grep error codes",
+          "expectedResult": "Handler codes ⊆ OpenAPI enum"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-056",
+        "BE-T11",
+        "—",
+        "U-C",
+        "existing",
+        "Контракт и инфра"
+      ],
+      "summary": "T-056: Router, validate, token (инфраструктура)",
+      "description": "Тест-кейс из TEST_PLAN.md. Область: Контракт и инфра. Ссылка: —. Уровень: U/C. Приоритет: P2. Статус покрытия: ✅.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 8,
+      "testRepositoryPath": "/вертикаль/контракт/t056",
+      "steps": [
+        {
+          "action": "GET /healthz",
+          "data": "",
+          "expectedResult": "200 OK"
+        },
+        {
+          "action": "POST /v1/bookings без auth",
+          "data": "",
+          "expectedResult": "401"
+        },
+        {
+          "action": "Invalid JSON",
+          "data": "",
+          "expectedResult": "400"
+        },
+        {
+          "action": "Token + contract tests",
+          "data": "",
+          "expectedResult": "Green"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-057",
+        "CMP-T18",
+        "SCR-004",
+        "UI",
+        "partial",
+        "Доступность и прокат"
+      ],
+      "summary": "T-057: SCR-004: деталь слота — bookable, waitlist, rental banner, цена, рейтинг",
+      "description": "Дополнительный кейс из ревью покрытия. Экран SCR-004 не имел dedicated T-xxx в TEST_PLAN. UI smoke + AC из TEST_COVERAGE_PLAN §3.",
+      "attachments": [],
+      "priority": "high",
+      "estimate": 20,
+      "testRepositoryPath": "/вертикаль/доступность/t057",
+      "steps": [
+        {
+          "action": "Открыть SCR-004 для OPEN слота",
+          "data": "freeSpots>0",
+          "expectedResult": "Header: время, формат, инструктор"
+        },
+        {
+          "action": "Проверить блок цены",
+          "data": "own equipment",
+          "expectedResult": "Base price label"
+        },
+        {
+          "action": "Переключить equipment preview RENTAL",
+          "data": "",
+          "expectedResult": "Цена обновлена"
+        },
+        {
+          "action": "FULL слот: SCR-004",
+          "data": "freeSpots=0",
+          "expectedResult": "Waitlist CTA, нет book CTA"
+        },
+        {
+          "action": "Rental exhausted слот",
+          "data": "BE-T14 setup",
+          "expectedResult": "Banner «Прокат недоступен»"
+        },
+        {
+          "action": "★ рейтинг инструктора",
+          "data": "rating>0",
+          "expectedResult": "Stars + average value"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-058",
+        "CMP-T15",
+        "SCR-001",
+        "UI",
+        "planned",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-058: ScreenSnapshot SCR-001: Loading, Content, Empty, Error",
+      "description": "CMP-T15 snapshot suite. Ключевые состояния экрана расписания для visual regression.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-001",
+      "steps": [
+        {
+          "action": "Snapshot: Loading state",
+          "data": "shimmer enabled",
+          "expectedResult": "Matches golden SCR-001-loading"
+        },
+        {
+          "action": "Snapshot: Content state",
+          "data": "seed slots",
+          "expectedResult": "Matches golden SCR-001-content"
+        },
+        {
+          "action": "Snapshot: Empty state",
+          "data": "no slots filter",
+          "expectedResult": "Matches golden SCR-001-empty"
+        },
+        {
+          "action": "Snapshot: Error state",
+          "data": "API error",
+          "expectedResult": "Matches golden SCR-001-error"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-059",
+        "CMP-T16",
+        "SCR-002",
+        "UI",
+        "planned",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-059: ScreenSnapshot SCR-002: фильтр дат",
+      "description": "CMP-T16 snapshot suite.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-002",
+      "steps": [
+        {
+          "action": "Snapshot: date picker default",
+          "data": "7-day window",
+          "expectedResult": "Matches golden SCR-002-default"
+        },
+        {
+          "action": "Snapshot: selected day",
+          "data": "date=today+2",
+          "expectedResult": "Matches golden SCR-002-selected"
+        },
+        {
+          "action": "Snapshot: reset state",
+          "data": "all days",
+          "expectedResult": "Matches golden SCR-002-reset"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-060",
+        "CMP-T17",
+        "SCR-003",
+        "UI",
+        "planned",
+        "Расписание и фильтры"
+      ],
+      "summary": "T-060: ScreenSnapshot SCR-003: фильтры формат/инструктор",
+      "description": "CMP-T17 snapshot suite.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-003",
+      "steps": [
+        {
+          "action": "Snapshot: filters default",
+          "data": "",
+          "expectedResult": "Matches golden SCR-003-default"
+        },
+        {
+          "action": "Snapshot: format selected",
+          "data": "BOULDERING",
+          "expectedResult": "Matches golden SCR-003-format"
+        },
+        {
+          "action": "Snapshot: instructor selected",
+          "data": "with ★ chip",
+          "expectedResult": "Matches golden SCR-003-instructor"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-061",
+        "CMP-T19",
+        "SCR-005",
+        "UI",
+        "partial",
+        "Запись"
+      ],
+      "summary": "T-061: ScreenSnapshot SCR-005: форма оформления",
+      "description": "CMP-T19 snapshot suite (SCR-004 covered by T-057).",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 15,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-005",
+      "steps": [
+        {
+          "action": "Snapshot: empty form",
+          "data": "new client",
+          "expectedResult": "Matches golden SCR-005-empty"
+        },
+        {
+          "action": "Snapshot: filled valid",
+          "data": "profile + OWN",
+          "expectedResult": "Matches golden SCR-005-valid"
+        },
+        {
+          "action": "Snapshot: CTA disabled",
+          "data": "invalid phone",
+          "expectedResult": "Matches golden SCR-005-gated"
+        },
+        {
+          "action": "Snapshot: RENTAL selected",
+          "data": "price visible",
+          "expectedResult": "Matches golden SCR-005-rental"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-062",
+        "CMP-T20",
+        "SCR-006",
+        "UI",
+        "blocked",
+        "Запись"
+      ],
+      "summary": "T-062: ScreenSnapshot SCR-006: экран успеха",
+      "description": "CMP-T20 snapshot suite. Blocked: push dialog requires FCM.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-006",
+      "steps": [
+        {
+          "action": "Snapshot: success content",
+          "data": "completed booking",
+          "expectedResult": "Matches golden SCR-006-success"
+        },
+        {
+          "action": "Snapshot: push dialog",
+          "data": "first booking mock",
+          "expectedResult": "Matches golden SCR-006-push (blocked)"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-063",
+        "CMP-T21",
+        "SCR-007",
+        "UI",
+        "planned",
+        "Состояния UI"
+      ],
+      "summary": "T-063: ScreenSnapshot SCR-007: экран ошибки записи",
+      "description": "CMP-T21 snapshot suite.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 10,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-007",
+      "steps": [
+        {
+          "action": "Snapshot: ONE_BOOKING_PER_DAY error",
+          "data": "",
+          "expectedResult": "Matches golden SCR-007-one-per-day"
+        },
+        {
+          "action": "Snapshot: NO_SPOTS error",
+          "data": "",
+          "expectedResult": "Matches golden SCR-007-no-spots"
+        },
+        {
+          "action": "Snapshot: generic error",
+          "data": "500",
+          "expectedResult": "Matches golden SCR-007-generic"
+        }
+      ]
+    },
+    {
+      "labels": [
+        "T-064",
+        "CMP-T22",
+        "SCR-008",
+        "SCR-009",
+        "SCR-010",
+        "SCR-011",
+        "SCR-012",
+        "SCR-013",
+        "UI",
+        "planned",
+        "Мои записи"
+      ],
+      "summary": "T-064: ScreenSnapshot SCR-008–013: bookings, detail, cancel, rate, waitlist, profile",
+      "description": "CMP-T22 snapshot suite для оставшихся экранов.",
+      "attachments": [],
+      "priority": "medium",
+      "estimate": 25,
+      "testRepositoryPath": "/вертикаль/ui-snapshot/scr-008-013",
+      "steps": [
+        {
+          "action": "Snapshot SCR-008: upcoming + past",
+          "data": "",
+          "expectedResult": "Matches golden SCR-008-tabs"
+        },
+        {
+          "action": "Snapshot SCR-008: empty",
+          "data": "",
+          "expectedResult": "Matches golden SCR-008-empty"
+        },
+        {
+          "action": "Snapshot SCR-009: ACTIVE detail",
+          "data": "",
+          "expectedResult": "Matches golden SCR-009-active"
+        },
+        {
+          "action": "Snapshot SCR-009: GYM_CANCELLED + reason",
+          "data": "",
+          "expectedResult": "Matches golden SCR-009-gym"
+        },
+        {
+          "action": "Snapshot SCR-010: early cancel sheet",
+          "data": "",
+          "expectedResult": "Matches golden SCR-010-early"
+        },
+        {
+          "action": "Snapshot SCR-010: late cancel sheet",
+          "data": "",
+          "expectedResult": "Matches golden SCR-010-late"
+        },
+        {
+          "action": "Snapshot SCR-012: waitlist position",
+          "data": "",
+          "expectedResult": "Matches golden SCR-012-position"
+        }
+      ]
+    }
+  ]
+}

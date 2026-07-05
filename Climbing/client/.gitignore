@@ -1,0 +1,33 @@
+# Gradle / Android / KMP build output — never commit
+**/.gradle/
+**/build/
+local.properties
+
+# Kotlin
+.kotlin/
+
+# IDE
+*.iml
+.idea/
+
+# OS
+.DS_Store
+
+# Signing
+**/keystore/
+
+# Native
+**/.cxx/
+**/.externalNativeBuild/
+
+# Xcode / iOS (KMP)
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.build/
+.swiftpm/
+Pods/
+
+# Secrets
+*.env
+.env.*

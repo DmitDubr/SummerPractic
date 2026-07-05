@@ -1,0 +1,103 @@
+BadRequest:
+  description: Ошибка валидации запроса
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: VALIDATION_ERROR
+        message: Некорректные данные запроса
+        details:
+          - field: client.phone
+            message: Телефон должен быть в формате +7 и содержать 10 цифр
+
+Unauthorized:
+  description: Требуется сессия клиента
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: VALIDATION_ERROR
+        message: Требуется авторизация
+
+NotFound:
+  description: Ресурс не найден
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: VALIDATION_ERROR
+        message: Ресурс не найден
+
+Forbidden:
+  description: Операция запрещена
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      examples:
+        slotRebookForbidden:
+          summary: Повторная запись на отменённый слот (R-008, FR-011)
+          value:
+            code: SLOT_REBOOK_FORBIDDEN
+            message: Запись на этот слот недоступна
+        bookingNotAttended:
+          summary: Оценка до посещения (FR-012)
+          value:
+            code: BOOKING_NOT_ATTENDED
+            message: Оценить можно после тренировки
+
+Conflict:
+  description: Конфликт бизнес-правил
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      examples:
+        noSpots:
+          summary: Мест нет (гонка, R-004)
+          value:
+            code: NO_SPOTS
+            message: Места закончились
+        oneBookingPerDay:
+          summary: Лимит 1 бронь/день (Q 1.3)
+          value:
+            code: ONE_BOOKING_PER_DAY
+            message: Уже есть запись на этот день
+        slotCancelled:
+          summary: Слот отменён скалодромом
+          value:
+            code: SLOT_CANCELLED
+            message: Тренировка отменена
+        rentalUnavailable:
+          summary: Прокат исчерпан (Q 2.4)
+          value:
+            code: RENTAL_UNAVAILABLE
+            message: Прокат закончился
+        alreadyCancelled:
+          summary: Бронь уже отменена
+          value:
+            code: ALREADY_CANCELLED
+            message: Запись уже отменена
+        alreadyRated:
+          summary: Оценка уже отправлена
+          value:
+            code: ALREADY_RATED
+            message: Вы уже оценили этого инструктора
+        alreadyInWaitlist:
+          summary: Клиент уже в очереди
+          value:
+            code: ALREADY_IN_WAITLIST
+            message: Вы уже в листе ожидания на этот слот
+
+ServerError:
+  description: Внутренняя ошибка сервера
+  content:
+    application/json:
+      schema:
+        $ref: './schemas.yaml#/ErrorResponse'
+      example:
+        code: SERVER_ERROR
+        message: Внутренняя ошибка сервера

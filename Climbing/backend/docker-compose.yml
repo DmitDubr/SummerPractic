@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vertical
+      POSTGRES_PASSWORD: vertical
+      POSTGRES_DB: vertical
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vertical -d vertical"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: migrate/migrate:v4.18.1
+    volumes:
+      - ./db/migrations:/migrations
+    command:
+      [
+        "-path",
+        "/migrations",
+        "-database",
+        "postgres://vertical:vertical@db:5432/vertical?sslmode=disable",
+        "up",
+      ]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://vertical:vertical@db:5432/vertical?sslmode=disable
+      JWT_SECRET: dev-vertical-secret
+      HTTP_PORT: "8080"
+      DEV_MODE: "true"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

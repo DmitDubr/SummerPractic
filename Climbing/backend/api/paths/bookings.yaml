@@ -1,0 +1,223 @@
+/bookings:
+  get:
+    operationId: listBookings
+    tags:
+      - bookings
+    summary: Список броней клиента
+    description: |
+      Брони текущего клиента для SCR-008 (UC-003, FR-007).
+      Сегментация «Предстоящие» / «Прошедшие» выполняется на клиенте по `slot.startsAt` и `status`.
+      Поддерживает офлайн-кэш (Q 9.2).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingStatusFilter'
+      - $ref: '../components/parameters.yaml#/Limit'
+      - $ref: '../components/parameters.yaml#/Offset'
+    responses:
+      '200':
+        description: Список броней
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/BookingListResponse'
+            example:
+              items:
+                - id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+                  status: ACTIVE
+                  totalPrice: 1200
+                  slot:
+                    startsAt: '2026-07-09T18:30:00+03:00'
+                    format:
+                      name: Трассы с верёвкой
+                    zone:
+                      name: Трассы
+                    instructor:
+                      fullName: Алексей К.
+              meta:
+                total: 1
+                limit: 50
+                offset: 0
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+  post:
+    operationId: createBooking
+    tags:
+      - bookings
+    summary: Создать бронь
+    description: |
+      Запись на тренировку (UC-002, FR-005–006).
+
+      Client API выполняет upsert профиля клиента, pre-check слота и атомарное создание
+      брони в Existing Backend (api-sequence.md).
+
+      **Коды ошибок:** см. матрицу в api-sequence §5.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas.yaml#/CreateBookingRequest'
+          example:
+            slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+            client:
+              name: Иван
+              phone: '+79001234567'
+            equipment:
+              mode: RENTAL
+              rentalShoes: true
+              rentalHarness: false
+    responses:
+      '201':
+        description: Бронь создана
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CreateBookingResponse'
+            example:
+              id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              status: ACTIVE
+              totalPrice: 1200
+              equipment:
+                mode: RENTAL
+                rentalShoes: true
+                rentalHarness: false
+              createdAt: '2026-07-03T10:00:00+03:00'
+              sessionToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '403':
+        $ref: '../components/responses.yaml#/Forbidden'
+      '409':
+        $ref: '../components/responses.yaml#/Conflict'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/bookings/{bookingId}:
+  get:
+    operationId: getBooking
+    tags:
+      - bookings
+    summary: Детали брони
+    description: |
+      Полная информация о брони для SCR-009 (UC-003–005).
+      Поддерживает deep link из push-уведомлений (FR-010).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingId'
+    responses:
+      '200':
+        description: Детали брони
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/Booking'
+            example:
+              id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              slotId: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              status: ACTIVE
+              totalPrice: 1200
+              equipment:
+                mode: RENTAL
+                rentalShoes: true
+                rentalHarness: false
+              createdAt: '2026-07-03T10:00:00+03:00'
+              slot:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                startsAt: '2026-07-09T18:30:00+03:00'
+                endsAt: '2026-07-09T20:00:00+03:00'
+                format:
+                  name: Трассы с верёвкой
+                zone:
+                  name: Трассы
+                instructor:
+                  id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                  name: Алексей К.
+                  rating: 4.8
+                  ratingCount: 42
+              gym:
+                name: Вертикаль
+                address: ул. Примерная, 1
+              instructorRating: null
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/bookings/{bookingId}/cancel:
+  post:
+    operationId: cancelBooking
+    tags:
+      - bookings
+    summary: Отменить бронь клиентом
+    description: |
+      Отмена активной брони (UC-004, FR-008).
+
+      При отмене за ≥1 ч до начала место освобождается сразу (Q 3.2, 3.4, LOGIC-004).
+      Штрафы за позднюю отмену в MVP не применяются (Q 3.1).
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingId'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+    responses:
+      '200':
+        description: Бронь отменена
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/CancelBookingResponse'
+            example:
+              id: 4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a
+              status: CANCELLED_BY_CLIENT
+              cancelledAt: '2026-07-03T17:00:00+03:00'
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '403':
+        description: Отмена запрещена (не в MVP — `CANCEL_TOO_LATE`)
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/ErrorResponse'
+      '409':
+        $ref: '../components/responses.yaml#/Conflict'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/bookings/{bookingId}/leave-waitlist:
+  post:
+    operationId: leaveWaitlist
+    tags:
+      - bookings
+    summary: Покинуть лист ожидания (через бронь)
+    description: |
+      Альтернатива `DELETE /waitlist/{waitlistEntryId}` для SCR-009
+      при `status=WAITLIST`.
+    security:
+      - ClientSession: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/BookingId'
+    responses:
+      '204':
+        description: Клиент вышел из очереди
+      '401':
+        $ref: '../components/responses.yaml#/Unauthorized'
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '409':
+        $ref: '../components/responses.yaml#/Conflict'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'

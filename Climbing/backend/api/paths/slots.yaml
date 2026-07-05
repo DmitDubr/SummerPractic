@@ -1,0 +1,97 @@
+/slots:
+  get:
+    operationId: listSlots
+    tags:
+      - slots
+    summary: Список слотов расписания
+    description: |
+      Возвращает слоты за период с опциональными фильтрами (UC-001, FR-001–004).
+      Дефолтный период — **7 дней** от текущей даты при отсутствии `dateFrom`/`dateTo`.
+    parameters:
+      - $ref: '../components/parameters.yaml#/DateFrom'
+      - $ref: '../components/parameters.yaml#/DateTo'
+      - $ref: '../components/parameters.yaml#/InstructorIds'
+      - $ref: '../components/parameters.yaml#/TimeOfDay'
+      - $ref: '../components/parameters.yaml#/Level'
+    responses:
+      '200':
+        description: Список слотов
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotListResponse'
+            example:
+              items:
+                - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  startAt: '2026-07-03T18:00:00+03:00'
+                  format: Болдеринг для новичков
+                  zone: Болдеринг
+                  instructor:
+                    id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    name: Анна К.
+                    rating: 4.8
+                  freeSpots: 3
+                  capacity: 8
+                  price: 1200
+                  status: OPEN
+                  isBookable: true
+              meta:
+                total: 1
+                limit: 50
+                offset: 0
+      '400':
+        $ref: '../components/responses.yaml#/BadRequest'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
+
+/slots/{slotId}:
+  get:
+    operationId: getSlot
+    tags:
+      - slots
+    summary: Детали слота
+    description: |
+      Актуальные данные слота для SCR-004: свободные места, прокат, статус.
+      Pre-check перед `POST /bookings` (api-sequence §4.3).
+    parameters:
+      - $ref: '../components/parameters.yaml#/SlotId'
+    responses:
+      '200':
+        description: Детали слота
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/SlotDetail'
+            example:
+              id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+              startAt: '2026-07-03T18:00:00+03:00'
+              endAt: '2026-07-03T19:30:00+03:00'
+              durationMinutes: 90
+              format: Болдеринг для новичков
+              zone: Болдеринг
+              zoneName: Болдеринг
+              instructor:
+                id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                name: Анна К.
+                photoUrl: https://cdn.example/instructors/anna.jpg
+                rating: 4.2
+                ratingCount: 28
+              freeSpots: 3
+              capacity: 8
+              basePrice: 1200
+              price: 1200
+              status: OPEN
+              isBookable: true
+              rentalAvailable: true
+              rentalAvailability:
+                shoesAvailable: 5
+                harnessAvailable: 3
+                isBookable: true
+              gym:
+                id: 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
+                name: Вертикаль
+                address: ул. Примерная, 1
+      '404':
+        $ref: '../components/responses.yaml#/NotFound'
+      '500':
+        $ref: '../components/responses.yaml#/ServerError'
